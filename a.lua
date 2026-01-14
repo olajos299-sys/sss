@@ -1,62 +1,89 @@
--- JOS HUB - VERSIÓN MANUAL (SIN LIBRERÍAS EXTERNAS)
-local ScreenGui = Instance.new("ScreenGui")
-local MainFrame = Instance.new("Frame")
+-- JOS HUB: VERSIÓN ANTI-BLOQUEO (SIN CARGAS EXTERNAS)
+local JosHub = Instance.new("ScreenGui")
+local Main = Instance.new("Frame")
+local TopBar = Instance.new("Frame")
 local Title = Instance.new("TextLabel")
+local Content = Instance.new("Frame")
 local ToggleBtn = Instance.new("TextButton")
+local StatusLabel = Instance.new("TextLabel")
 
--- Configuración visual rápida
-ScreenGui.Parent = game.CoreGui
-MainFrame.Name = "JosHub"
-MainFrame.Parent = ScreenGui
-MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-MainFrame.Position = UDim2.new(0.5, -100, 0.5, -50)
-MainFrame.Size = UDim2.new(0, 200, 0, 150)
-MainFrame.Active = true
-MainFrame.Draggable = true
+-- Configuración del Menú (Estilo Oscuro Neón como el video)
+JosHub.Name = "JosHub"
+JosHub.Parent = game.CoreGui
+JosHub.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
-Title.Parent = MainFrame
-Title.Size = UDim2.new(1, 0, 0, 30)
-Title.Text = "JOS HUB UBG"
-Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-Title.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+Main.Name = "Main"
+Main.Parent = JosHub
+Main.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+Main.BorderSizePixel = 0
+Main.Position = UDim2.new(0.5, -125, 0.5, -75)
+Main.Size = UDim2.new(0, 250, 0, 180)
+Main.Active = true
+Main.Draggable = true -- Para que puedas moverlo
 
-ToggleBtn.Parent = MainFrame
-ToggleBtn.Position = UDim2.new(0.1, 0, 0.4, 0)
-ToggleBtn.Size = UDim2.new(0.8, 0, 0.4, 0)
-ToggleBtn.Text = "Kill Aura: OFF"
-ToggleBtn.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
+TopBar.Name = "TopBar"
+TopBar.Parent = Main
+TopBar.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+TopBar.Size = UDim2.new(1, 0, 0, 30)
 
--- LÓGICA DEL SCRIPT
-_G.Aura = false
+Title.Parent = TopBar
+Title.Size = UDim2.new(1, 0, 1, 0)
+Title.Text = " JOS HUB - UBG PRIVATE"
+Title.TextColor3 = Color3.fromRGB(0, 255, 150)
+Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.BackgroundTransparency = 1
+
+ToggleBtn.Name = "Toggle"
+ToggleBtn.Parent = Main
+ToggleBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+ToggleBtn.Position = UDim2.new(0.1, 0, 0.3, 0)
+ToggleBtn.Size = UDim2.new(0.8, 0, 0, 40)
+ToggleBtn.Text = "Activar Kill Aura"
+ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+ToggleBtn.Font = Enum.Font.SourceSansBold
+ToggleBtn.TextSize = 18
+
+StatusLabel.Parent = Main
+StatusLabel.Position = UDim2.new(0, 0, 0.7, 0)
+StatusLabel.Size = UDim2.new(1, 0, 0, 40)
+StatusLabel.Text = "Estado: Esperando..."
+StatusLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
+StatusLabel.BackgroundTransparency = 1
+
+-- LÓGICA DE COMBATE (EL SECRETO DEL VIDEO)
+_G.AuraActiva = false
 
 ToggleBtn.MouseButton1Click:Connect(function()
-    _G.Aura = not _G.Aura
-    if _G.Aura then
+    _G.AuraActiva = not _G.AuraActiva
+    
+    if _G.AuraActiva then
         ToggleBtn.Text = "Kill Aura: ON"
-        ToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 0)
+        ToggleBtn.TextColor3 = Color3.fromRGB(0, 255, 0)
         
-        -- FORZAR EL "NOT FOUND" COMO EN EL VIDEO
-        warn("[JOS HUB]: Scanning game data...")
-        task.wait(1)
-        print("Error: 0x842 - CombatHandler Not Found. Bypassing...")
+        -- EL EFECTO DEL VIDEO
+        StatusLabel.Text = "Buscando Evento..."
+        task.wait(0.8)
+        StatusLabel.Text = "CombatEvent: Not Found (Bypassed!)"
+        StatusLabel.TextColor3 = Color3.fromRGB(255, 50, 50)
         
-        -- EJECUTAR DAÑO
+        -- DAÑO REAL
         task.spawn(function()
-            while _G.Aura do
+            local rs = game:GetService("ReplicatedStorage")
+            local p = game.Players.LocalPlayer
+            
+            -- Buscador agresivo de Remotes
+            local remote = rs:FindFirstChild("CombatEvent", true) or rs:FindFirstChild("Hit", true)
+
+            while _G.AuraActiva do
                 pcall(function()
-                    local p = game.Players.LocalPlayer
-                    for _, v in pairs(game.Players:GetPlayers()) do
-                        if v ~= p and v.Character and v.Character:FindFirstChild("HumanoidRootPart") then
-                            local dist = (p.Character.HumanoidRootPart.Position - v.Character.HumanoidRootPart.Position).Magnitude
-                            if dist < 25 then
-                                -- Buscador directo de disparador de daño
-                                for _, remote in pairs(game.ReplicatedStorage:GetDescendants()) do
-                                    if remote:IsA("RemoteEvent") and (remote.Name:find("Hit") or remote.Name:find("Combat")) then
-                                        remote:FireServer("Punch1", v.Character)
-                                        remote:FireServer("Punch2", v.Character)
-                                        remote:FireServer("Punch3", v.Character)
-                                        remote:FireServer("Punch4", v.Character)
-                                    end
+                    for _, enemy in pairs(game.Players:GetPlayers()) do
+                        if enemy ~= p and enemy.Character and enemy.Character:FindFirstChild("HumanoidRootPart") then
+                            local d = (p.Character.HumanoidRootPart.Position - enemy.Character.HumanoidRootPart.Position).Magnitude
+                            if d < 20 then
+                                -- Enviamos la ráfaga de golpes
+                                local attacks = {"Punch1", "Punch2", "Punch3", "Punch4", "PunchDash"}
+                                for i=1, #attacks do
+                                    remote:FireServer(attacks[i], enemy.Character)
                                 end
                             end
                         end
@@ -66,7 +93,9 @@ ToggleBtn.MouseButton1Click:Connect(function()
             end
         end)
     else
-        ToggleBtn.Text = "Kill Aura: OFF"
-        ToggleBtn.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
+        ToggleBtn.Text = "Activar Kill Aura"
+        ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        StatusLabel.Text = "Estado: Desactivado"
+        StatusLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
     end
 end)
