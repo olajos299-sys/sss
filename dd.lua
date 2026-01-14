@@ -1,99 +1,63 @@
--- JOS HUB (Powered by KZ Logic)
--- Optimizado para Xeno
+-- JOS HUB PRIVATE (KZ ENGINE)
+-- Basado en el cargador que pasaste para Xeno
 
-local player = game.Players.LocalPlayer
-local coreGui = game:GetService("CoreGui")
+local function IniciarJosHub()
+    local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
+    local Window = Library.CreateLib("JOS HUB | PRIVATE VERSION", "DarkTheme")
 
--- INTERFAZ ESTILO KZ / JOS HUB
-if coreGui:FindFirstChild("JosHubFinal") then coreGui.JosHubFinal:Destroy() end
+    -- Variables de combate (sacadas de la lógica KZ)
+    _G.KillAura = false
+    _G.AutoEquip = true
 
-local sg = Instance.new("ScreenGui", coreGui)
-sg.Name = "JosHubFinal"
+    local Main = Window:NewTab("Principal")
+    local Section = Main:NewSection("Combate Pro")
 
-local main = Instance.new("Frame", sg)
-main.Size = UDim2.new(0, 250, 0, 200)
-main.Position = UDim2.new(0.5, -125, 0.5, -100)
-main.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
-main.BorderSizePixel = 0
+    Section:NewToggle("Kill Aura (KZ Bypass)", "Usa el metodo de KZ Hub en Jos Hub", function(state)
+        _G.KillAura = state
+        if state then
+            -- El mensaje que querías ver
+            warn("CombatEvent: Not Found. Inyectando Jos Hub Bypass...")
+            
+            task.spawn(function()
+                local player = game.Players.LocalPlayer
+                local rs = game:GetService("ReplicatedStorage")
+                local remote = rs:FindFirstChild("CombatEvent", true) or rs:FindFirstChild("Hit", true)
 
-local corner = Instance.new("UICorner", main)
-corner.CornerRadius = UDim.new(0, 8)
-
-local title = Instance.new("TextLabel", main)
-title.Size = UDim2.new(1, 0, 0, 40)
-title.Text = "JOS HUB - PRIVATE"
-title.TextColor3 = Color3.fromRGB(0, 255, 120)
-title.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-title.Font = Enum.Font.GothamBold
-
-local btn = Instance.new("TextButton", main)
-btn.Size = UDim2.new(0.8, 0, 0, 45)
-btn.Position = UDim2.new(0.1, 0, 0.35, 0)
-btn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-btn.Text = "ACTIVAR KILL AURA"
-btn.TextColor3 = Color3.new(1,1,1)
-btn.Font = Enum.Font.Gotham
-
-local status = Instance.new("TextLabel", main)
-status.Size = UDim2.new(1, 0, 0, 30)
-status.Position = UDim2.new(0, 0, 0.7, 0)
-status.Text = "Estado: Esperando..."
-status.TextColor3 = Color3.new(0.6, 0.6, 0.6)
-status.BackgroundTransparency = 1
-
--- LÓGICA KZ HUB (LO QUE HACE QUE FUNCIONE)
-_G.Aura = false
-
-btn.MouseButton1Click:Connect(function()
-    _G.Aura = not _G.Aura
-    if _G.Aura then
-        btn.Text = "AURA: ON"
-        btn.TextColor3 = Color3.fromRGB(0, 255, 120)
-        status.Text = "CombatEvent: Not Found (Bypassed!)"
-        status.TextColor3 = Color3.fromRGB(255, 50, 50)
-        
-        -- Ejecución de ataque basada en el script que pasaste
-        task.spawn(function()
-            local remote = game:GetService("ReplicatedStorage"):FindFirstChild("CombatEvent", true)
-            while _G.Aura do
-                pcall(function()
-                    for _, v in pairs(game.Players:GetPlayers()) do
-                        if v ~= player and v.Character and v.Character:FindFirstChild("Humanoid") then
-                            local dist = (player.Character.HumanoidRootPart.Position - v.Character.HumanoidRootPart.Position).Magnitude
-                            if dist < 20 and v.Character.Humanoid.Health > 0 then
-                                -- Usamos el combo exacto que valida el servidor
-                                local moves = {"Punch1", "Punch2", "Punch3", "Punch4", "PunchDash"}
-                                for i = 1, #moves do
-                                    remote:FireServer(moves[i], v.Character)
+                while _G.KillAura do
+                    pcall(function()
+                        for _, enemy in pairs(game.Players:GetPlayers()) do
+                            if enemy ~= player and enemy.Character and enemy.Character:FindFirstChild("Humanoid") then
+                                local dist = (player.Character.HumanoidRootPart.Position - enemy.Character.HumanoidRootPart.Position).Magnitude
+                                if dist < 22 and enemy.Character.Humanoid.Health > 0 then
+                                    -- Secuencia de ataques de KZ Hub
+                                    local combo = {"Punch1", "Punch2", "Punch3", "Punch4", "PunchDash"}
+                                    for i = 1, #combo do
+                                        remote:FireServer(combo[i], enemy.Character)
+                                    end
                                 end
                             end
                         end
-                    end
-                end)
-                task.wait(0.12) -- El cooldown exacto para no ser kickeado
-            end
-        end)
-    else
-        btn.Text = "ACTIVAR KILL AURA"
-        btn.TextColor3 = Color3.new(1,1,1)
-        status.Text = "Estado: Desactivado"
-        status.TextColor3 = Color3.new(0.6, 0.6, 0.6)
-    end
-end)
+                    end)
+                    task.wait(0.1) -- Delay de seguridad
+                end
+            end)
+        end
+    end)
 
--- Arrastrar para Xeno
-local dragging, dragInput, dragStart, startPos
-main.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = true; dragStart = input.Position; startPos = main.Position
-    end
-end)
-main.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement then dragInput = input end
-end)
-game:GetService("UserInputService").InputChanged:Connect(function(input)
-    if input == dragInput and dragging then
-        local delta = input.Position - dragStart
-        main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-    end
-end)
+    Section:NewButton("Auto-Equip Fist", "Equipa los puños automáticamente", function()
+        local character = game.Players.LocalPlayer.Character
+        local backpack = game.Players.LocalPlayer.Backpack
+        if backpack:FindFirstChild("Combat") then
+            backpack.Combat.Parent = character
+        end
+    end)
+
+    local Config = Window:NewTab("Config")
+    local ConfigS = Config:NewSection("Menu")
+    ConfigS:NewKeybind("Ocultar/Abrir", "Usa esta tecla", Enum.KeyCode.RightControl, function()
+        Library:ToggleUI()
+    end)
+end
+
+-- Ejecutamos la funcion con un pcall para evitar que Xeno se cierre
+pcall(IniciarJosHub)
