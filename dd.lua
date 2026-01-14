@@ -46,6 +46,7 @@ Section:NewToggle("Kill Aura (KZ Method)", "Este SI hace daño", function(state)
                                         -- Enviamos el daño con la tabla de argumentos que el server espera
                                         remote:FireServer(combo[i], v.Character)
                                         task.wait(0.01) -- Micro-delay para que el server no lo ignore
+                                        print("Fired ", combo[i], " to ", v.Name) -- Debug information
                                     end
                                 end
                             end
