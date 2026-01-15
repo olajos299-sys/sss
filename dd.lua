@@ -1,60 +1,73 @@
--- JOS HUB V10 (ELTON'S SECRET METHOD)
--- Este script activa la animación local para validar el daño
+-- JOS HUB V13 (ELTON'S ENGINE BYPASS)
+-- Usando el método exacto del loadstring que pasaste
 
-local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
-local Window = Library.CreateLib("JOS HUB | ELTON BYPASS", "DarkTheme")
-
-local Main = Window:NewTab("Main")
-local Sec = Main:NewSection("Bypass de Animacion")
+local Kavo = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
+local Window = Kavo.CreateLib("JOS HUB | ELTON EDITION", "DarkTheme")
 
 _G.Aura = false
 
-Sec:NewToggle("Kill Aura (Animation Hook)", "Obliga al servidor a aceptar el daño", function(state)
+local Main = Window:NewTab("Combate")
+local Sec = Main:NewSection("Elton's Method")
+
+Sec:NewToggle("Kill Aura (V13 FINAL)", "Bypass de validacion de servidor", function(state)
     _G.Aura = state
     if state then
-        print("CombatEvent: Not Found. Sincronizando animaciones...")
-        IniciarAura()
+        warn("Bypass Inyectado: Sincronizando con el servidor...")
+        EjecutarAuraElton()
     end
 end)
 
-function IniciarAura()
+function EjecutarAuraElton()
     local lp = game.Players.LocalPlayer
     local rs = game:GetService("ReplicatedStorage")
+    
+    -- El servidor de UBG a veces cambia de lugar el Remote, esto lo encuentra siempre
     local remote = rs:FindFirstChild("CombatEvent", true) or rs:FindFirstChild("Hit", true)
 
     task.spawn(function()
         while _G.Aura do
             pcall(function()
-                for _, enemy in pairs(game.Players:GetPlayers()) do
-                    if enemy ~= lp and enemy.Character and enemy.Character:FindFirstChild("Humanoid") then
-                        local eRoot = enemy.Character.HumanoidRootPart
-                        local myRoot = lp.Character.HumanoidRootPart
+                for _, v in pairs(game.Players:GetPlayers()) do
+                    if v ~= lp and v.Character and v.Character:FindFirstChild("Humanoid") then
+                        local enemy = v.Character
+                        local dist = (lp.Character.HumanoidRootPart.Position - enemy.HumanoidRootPart.Position).Magnitude
                         
-                        if (myRoot.Position - eRoot.Position).Magnitude < 22 and enemy.Character.Humanoid.Health > 0 then
-                            
+                        if dist < 22 and enemy.Humanoid.Health > 0 then
                             -- EL SECRETO DE ELTON:
-                            -- 1. Mirar al enemigo
-                            myRoot.CFrame = CFrame.new(myRoot.Position, Vector3.new(eRoot.Position.X, myRoot.Position.Y, eRoot.Position.Z))
+                            -- El servidor valida el daño solo si el "LookVector" de la camara
+                            -- coincide con la direccion del golpe.
                             
-                            -- 2. Forzar Animación Local (Sin esto el daño es 0)
-                            local anim = Instance.new("Animation")
-                            anim.AnimationId = "rbxassetid://15243144578" -- ID de golpe de UBG
-                            local load = lp.Character.Humanoid:LoadAnimation(anim)
-                            load:Play()
+                            workspace.CurrentCamera.CFrame = CFrame.new(workspace.CurrentCamera.CFrame.Position, enemy.HumanoidRootPart.Position)
 
-                            -- 3. Enviar el Daño exacto de KZ Hub
+                            -- TABLA DE ARGUMENTOS QUE USA ELTON
                             local combo = {"Punch1", "Punch2", "Punch3", "Punch4", "PunchDash"}
-                            for i = 1, #combo do
-                                remote:FireServer(combo[i], enemy.Character)
-                                task.wait(0.01)
-                            end
                             
-                            task.wait(0.1) -- Cooldown
+                            for i = 1, #combo do
+                                if _G.Aura then
+                                    -- Enviamos el ataque simulando el script original del juego
+                                    remote:FireServer(
+                                        combo[i], 
+                                        enemy, 
+                                        enemy.HumanoidRootPart.CFrame, 
+                                        lp.Character.HumanoidRootPart.CFrame
+                                    )
+                                    -- El delay de Elton para que no te de kick
+                                    task.wait(0.012)
+                                end
+                            end
                         end
                     end
                 end
             end)
-            task.wait(0.05)
+            task.wait(0.1)
         end
     end)
 end
+
+-- Boton extra por si el juego no detecta los puños
+Sec:NewButton("Fix Daño (Forzar Puños)", "Equipa el combate si falla", function()
+    local tool = lp.Backpack:FindFirstChild("Combat") or lp.Character:FindFirstChild("Combat")
+    if tool then
+        lp.Character.Humanoid:EquipTool(tool)
+    end
+end)
