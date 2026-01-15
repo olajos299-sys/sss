@@ -1,101 +1,115 @@
--- JOS HUB: VERSIÓN ANTI-BLOQUEO (SIN CARGAS EXTERNAS)
-local JosHub = Instance.new("ScreenGui")
-local Main = Instance.new("Frame")
-local TopBar = Instance.new("Frame")
-local Title = Instance.new("TextLabel")
-local Content = Instance.new("Frame")
-local ToggleBtn = Instance.new("TextButton")
-local StatusLabel = Instance.new("TextLabel")
+-- JOS HUB V16 (ORION EDITION)
+local OrionLib = loadstring(game:HttpGet(('https://raw.githubusercontent.com/shlexware/Orion/main/source')))()
 
--- Configuración del Menú (Estilo Oscuro Neón como el video)
-JosHub.Name = "JosHub"
-JosHub.Parent = game.CoreGui
-JosHub.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+local Window = OrionLib:MakeWindow({
+    Name = "JOS HUB | ELTON LEGACY V16", 
+    HidePremium = false, 
+    SaveConfig = false, 
+    IntroText = "JOS HUB V16",
+    IntroIcon = "rbxassetid://4483345998"
+})
 
-Main.Name = "Main"
-Main.Parent = JosHub
-Main.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-Main.BorderSizePixel = 0
-Main.Position = UDim2.new(0.5, -125, 0.5, -75)
-Main.Size = UDim2.new(0, 250, 0, 180)
-Main.Active = true
-Main.Draggable = true -- Para que puedas moverlo
+_G.KillAura = false
+_G.Rango = 25
 
-TopBar.Name = "TopBar"
-TopBar.Parent = Main
-TopBar.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-TopBar.Size = UDim2.new(1, 0, 0, 30)
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local CombatRemote = ReplicatedStorage:WaitForChild("Combat", 5):WaitForChild("Melee", 5)
 
-Title.Parent = TopBar
-Title.Size = UDim2.new(1, 0, 1, 0)
-Title.Text = " JOS HUB - UBG PRIVATE"
-Title.TextColor3 = Color3.fromRGB(0, 255, 150)
-Title.TextXAlignment = Enum.TextXAlignment.Left
-Title.BackgroundTransparency = 1
-
-ToggleBtn.Name = "Toggle"
-ToggleBtn.Parent = Main
-ToggleBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-ToggleBtn.Position = UDim2.new(0.1, 0, 0.3, 0)
-ToggleBtn.Size = UDim2.new(0.8, 0, 0, 40)
-ToggleBtn.Text = "Activar Kill Aura"
-ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-ToggleBtn.Font = Enum.Font.SourceSansBold
-ToggleBtn.TextSize = 18
-
-StatusLabel.Parent = Main
-StatusLabel.Position = UDim2.new(0, 0, 0.7, 0)
-StatusLabel.Size = UDim2.new(1, 0, 0, 40)
-StatusLabel.Text = "Estado: Esperando..."
-StatusLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
-StatusLabel.BackgroundTransparency = 1
-
--- LÓGICA DE COMBATE (EL SECRETO DEL VIDEO)
-_G.AuraActiva = false
-
-ToggleBtn.MouseButton1Click:Connect(function()
-    _G.AuraActiva = not _G.AuraActiva
+function EjecutarAura()
+    local lp = game.Players.LocalPlayer
     
-    if _G.AuraActiva then
-        ToggleBtn.Text = "Kill Aura: ON"
-        ToggleBtn.TextColor3 = Color3.fromRGB(0, 255, 0)
-        
-        -- EL EFECTO DEL VIDEO
-        StatusLabel.Text = "Buscando Evento..."
-        task.wait(0.8)
-        StatusLabel.Text = "CombatEvent: Not Found (Bypassed!)"
-        StatusLabel.TextColor3 = Color3.fromRGB(255, 50, 50)
-        
-        -- DAÑO REAL
-        task.spawn(function()
-            local rs = game:GetService("ReplicatedStorage")
-            local p = game.Players.LocalPlayer
-            
-            -- Buscador agresivo de Remotes
-            local remote = rs:FindFirstChild("CombatEvent", true) or rs:FindFirstChild("Hit", true)
-
-            while _G.AuraActiva do
-                pcall(function()
-                    for _, enemy in pairs(game.Players:GetPlayers()) do
-                        if enemy ~= p and enemy.Character and enemy.Character:FindFirstChild("HumanoidRootPart") then
-                            local d = (p.Character.HumanoidRootPart.Position - enemy.Character.HumanoidRootPart.Position).Magnitude
-                            if d < 20 then
-                                -- Enviamos la ráfaga de golpes
-                                local attacks = {"Punch1", "Punch2", "Punch3", "Punch4", "PunchDash"}
-                                for i=1, #attacks do
-                                    remote:FireServer(attacks[i], enemy.Character)
-                                end
-                            end
-                        end
-                    end
-                end)
-                task.wait(0.1)
+    task.spawn(function()
+        while _G.KillAura do
+            if not lp.Character or not lp.Character:FindFirstChild("HumanoidRootPart") then 
+                task.wait(1) 
+                continue 
             end
-        end)
-    else
-        ToggleBtn.Text = "Activar Kill Aura"
-        ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-        StatusLabel.Text = "Estado: Desactivado"
-        StatusLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
-    end
-end)
+
+            local targets = {}
+            local myPos = lp.Character.HumanoidRootPart.Position
+
+            for _, v in pairs(game.Players:GetPlayers()) do
+                if v ~= lp and v.Character and v.Character:FindFirstChild("HumanoidRootPart") then
+                    local targetHRP = v.Character.HumanoidRootPart
+                    local dist = (myPos - targetHRP.Position).Magnitude
+                    
+                    if dist <= _G.Rango and v.Character:FindFirstChild("Humanoid") and v.Character.Humanoid.Health > 0 then
+                        table.insert(targets, v.Character)
+                    end
+                end
+            end
+
+            for _, char in pairs(targets) do
+                if not _G.KillAura then break end
+                pcall(function()
+                    local attacks = {"Punch1", "Punch2", "Punch3", "Punch4", "PunchDash"}
+                    local randomAttack = attacks[math.random(1, #attacks)]
+                    
+                    CombatRemote:FireServer(
+                        randomAttack, 
+                        char, 
+                        char.HumanoidRootPart.CFrame, 
+                        lp.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, -1)
+                    )
+                end)
+            end
+
+            task.wait(0.1)
+        end
+    end)
+end
+
+local MainTab = Window:MakeTab({
+    Name = "Combate",
+    Icon = "rbxassetid://4483345998",
+    PremiumOnly = false
+})
+
+MainTab:AddSection({
+    Name = "Multi-Target Kill Aura"
+})
+
+MainTab:AddToggle({
+    Name = "Activar Elton Aura",
+    Default = false,
+    Callback = function(Value)
+        _G.KillAura = Value
+        if Value then
+            OrionLib:MakeNotification({
+                Name = "JOS HUB",
+                Content = "Aura activada. Atacando enemigos...",
+                Image = "rbxassetid://4483345998",
+                Time = 3
+            })
+            EjecutarAura()
+        end
+    end    
+})
+
+MainTab:AddSlider({
+    Name = "Rango de Muerte",
+    Min = 10,
+    Max = 100,
+    Default = 25,
+    Color = Color3.fromRGB(255,255,255),
+    Increment = 1,
+    ValueName = "Studs",
+    Callback = function(Value)
+        _G.Rango = Value
+    end    
+})
+
+local ConfigTab = Window:MakeTab({
+    Name = "Configuracion",
+    Icon = "rbxassetid://4483345998",
+    PremiumOnly = false
+})
+
+ConfigTab:AddButton({
+    Name = "Cerrar Script",
+    Callback = function()
+        OrionLib:Destroy()
+      end    
+})
+
+OrionLib:Init()
