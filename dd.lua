@@ -1,6 +1,15 @@
--- JOS HUB V16 (ELTON AOE METHOD - RUTA FIJA)
-local Kavo = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
-local Window = Kavo.CreateLib("JOS HUB | ELTON LEGACY", "DarkTheme")
+-- JOS HUB V16 (RAYFIELD EDITION)
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+
+local Window = Rayfield:CreateWindow({
+   Name = "JOS HUB | ELTON LEGACY V16",
+   LoadingTitle = "Cargando Metodo Elton...",
+   LoadingSubtitle = "by JOS",
+   ConfigurationSaving = {
+      Enabled = false
+   },
+   KeySystem = false
+})
 
 _G.KillAura = false
 _G.Rango = 25
@@ -8,10 +17,11 @@ _G.Rango = 25
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local CombatRemote = ReplicatedStorage:WaitForChild("Combat"):WaitForChild("Melee")
 
-local Main = Window:NewTab("Combate")
-local Sec = Main:NewSection("Multi-Target Aura")
+local Tab = Window:CreateTab("Combate", 4483362458)
 
-function EjecutarAuraElton()
+local Section = Tab:CreateSection("Multi-Target AOE")
+
+function EjecutarAura()
     local lp = game.Players.LocalPlayer
     
     task.spawn(function()
@@ -22,10 +32,11 @@ function EjecutarAuraElton()
             end
 
             local targets = {}
+            local myPos = lp.Character.HumanoidRootPart.Position
 
             for _, v in pairs(game.Players:GetPlayers()) do
                 if v ~= lp and v.Character and v.Character:FindFirstChild("HumanoidRootPart") then
-                    local dist = (lp.Character.HumanoidRootPart.Position - v.Character.HumanoidRootPart.Position).Magnitude
+                    local dist = (myPos - v.Character.HumanoidRootPart.Position).Magnitude
                     if dist <= _G.Rango and v.Character:FindFirstChild("Humanoid") and v.Character.Humanoid.Health > 0 then
                         table.insert(targets, v.Character)
                     end
@@ -52,22 +63,43 @@ function EjecutarAuraElton()
     end)
 end
 
-Sec:NewToggle("Activar AOE Kill Aura", "Mata a todos en Combat.Melee", function(state)
-    _G.KillAura = state
-    if state then
-        EjecutarAuraElton()
-    end
-end)
+Tab:CreateToggle({
+   Name = "Activar Kill Aura",
+   CurrentValue = false,
+   Flag = "KillAuraToggle",
+   Callback = function(Value)
+      _G.KillAura = Value
+      if Value then
+         Rayfield:Notify({
+            Title = "Aura Activada",
+            Content = "Buscando enemigos en el rango...",
+            Duration = 3,
+            Image = 4483362458,
+         })
+         EjecutarAura()
+      end
+   end,
+})
 
-Sec:NewSlider("Radio de Muerte", "Rango de proximidad", 35, 10, function(s)
-    _G.Rango = s
-end)
+Tab:CreateSlider({
+   Name = "Radio de Ataque",
+   Range = {10, 100},
+   Increment = 5,
+   Suffix = "Studs",
+   CurrentValue = 25,
+   Flag = "RangeSlider",
+   Callback = function(Value)
+      _G.Rango = Value
+   end,
+})
 
-local Config = Window:NewTab("Config")
-local ConfigSec = Config:NewSection("Menu")
+local ExtraTab = Window:CreateTab("Ajustes", 4483362458)
 
-ConfigSec:NewKeybind("Ocultar con Tecla", "Cierra el menu", Enum.KeyCode.RightControl, function()
-    Kavo:ToggleUI()
-end)
+ExtraTab:CreateButton({
+   Name = "Destruir Menu",
+   Callback = function()
+      Rayfield:Destroy()
+   end,
+})
 
-print("JOS HUB V16 Cargado con éxito.")
+print("JOS HUB V16 loaded")
