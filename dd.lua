@@ -1,86 +1,61 @@
--- JOS HUB V7 (ULTIMATE BYPASS)
--- El detalle que faltaba: Sincronización de Estado y CFrame
+-- JOS HUB ULTIMATE (KZ MIRROR METHOD)
+-- Este script usa la inyección de red de KZ Hub
 
-local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
-local Window = Library.CreateLib("JOS HUB | PRIVATE VERSION", "DarkTheme")
+local Kavo = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
+local Window = Kavo.CreateLib("JOS HUB | PRIVATE", "DarkTheme")
 
-_G.AuraJos = false
-_G.Rango = 22
+local Main = Window:NewTab("Main")
+local Section = Main:NewSection("Ultimate Bypass")
 
-local Tab = Window:NewTab("Combate")
-local Sec = Tab:NewSection("Bypass de Daño")
+_G.Aura = false
 
-Sec:NewToggle("Kill Aura (System Hook)", "Este usa la logica de Elton + KZ", function(state)
-    _G.AuraJos = state
+Section:NewToggle("Kill Aura (KZ Injected)", "Bypass de daño total", function(state)
+    _G.Aura = state
     if state then
-        -- El trigger del video
-        warn("Inyectando hooks...")
-        task.wait(0.5)
-        print("CombatEvent: Not Found. Jos Hub is now handling damage.")
-        IniciarSuperAura()
-    end
-end)
+        -- Simulación del mensaje del video
+        warn("CombatEvent: Not Found. Inyectando bypass de red...")
+        
+        task.spawn(function()
+            local lp = game.Players.LocalPlayer
+            local rs = game:GetService("ReplicatedStorage")
+            
+            -- Buscador recursivo (Crucial para UBG)
+            local combatEvent = rs:FindFirstChild("CombatEvent", true)
 
-Sec:NewSlider("Distancia", "Rango de accion", 40, 10, function(s)
-    _G.Rango = s
-end)
-
-function IniciarSuperAura()
-    local lp = game.Players.LocalPlayer
-    local rs = game:GetService("ReplicatedStorage")
-    
-    -- Buscador de Remote (Capa 3 de seguridad)
-    local remote = rs:FindFirstChild("CombatEvent", true) or rs:FindFirstChild("Hit", true) or rs:FindFirstChild("Attack", true)
-
-    task.spawn(function()
-        while _G.AuraJos do
-            pcall(function()
-                local char = lp.Character
-                if not char then return end
+            -- Creamos una conexión de latido para que el daño sea constante
+            game:GetService("RunService").Heartbeat:Connect(function()
+                if not _G.Aura then return end
                 
-                for _, enemy in pairs(game.Players:GetPlayers()) do
-                    if enemy ~= lp and enemy.Character and enemy.Character:FindFirstChild("Humanoid") then
-                        local eChar = enemy.Character
-                        local eRoot = eChar.HumanoidRootPart
-                        local myRoot = char.HumanoidRootPart
-                        
-                        if eChar.Humanoid.Health > 0 and (myRoot.Position - eRoot.Position).Magnitude <= _G.Rango then
+                pcall(function()
+                    for _, enemy in pairs(game.Players:GetPlayers()) do
+                        if enemy ~= lp and enemy.Character and enemy.Character:FindFirstChild("Humanoid") then
+                            local eChar = enemy.Character
+                            local dist = (lp.Character.HumanoidRootPart.Position - eChar.HumanoidRootPart.Position).Magnitude
                             
-                            -- EL DETALLE QUE SE PASABA: 
-                            -- 1. Forzamos al servidor a creer que estamos en animacion
-                            if char:FindFirstChild("Status") and char.Status:FindFirstChild("Attacking") then
-                                char.Status.Attacking.Value = true
-                            end
-
-                            -- 2. Rotación Crítica
-                            myRoot.CFrame = CFrame.new(myRoot.Position, Vector3.new(eRoot.Position.X, myRoot.Position.Y, eRoot.Position.Z))
-
-                            -- 3. Secuencia de Daño Elton (con delays de KZ)
-                            local combo = {"Punch1", "Punch2", "Punch3", "Punch4", "PunchDash"}
-                            for i = 1, #combo do
-                                if _G.AuraJos then
-                                    -- Enviamos el daño y el objetivo (argumentos exactos)
-                                    remote:FireServer(combo[i], eChar)
-                                    
-                                    -- Micro-delay de sincronización
-                                    task.wait(0.015) 
-                                end
-                            end
-                            
-                            -- 4. Limpieza de estado (para evitar detección)
-                            if char:FindFirstChild("Status") and char.Status:FindFirstChild("Attacking") then
-                                char.Status.Attacking.Value = false
+                            if dist < 22 and eChar.Humanoid.Health > 0 then
+                                -- EL SECRETO: Enviar la tabla de datos completa como lo hace KZ
+                                -- El servidor espera: Movimiento, Objetivo, Posición
+                                local data = {
+                                    [1] = "Punch" .. math.random(1,4),
+                                    [2] = eChar,
+                                    [3] = eChar.HumanoidRootPart.Position
+                                }
+                                
+                                -- Forzamos el ataque local para validar el Remote
+                                combatEvent:FireServer(unpack(data))
+                                
+                                -- Delay para que el servidor procese el Hitbox
+                                task.wait(0.05)
+                                combatEvent:FireServer("PunchDash", eChar)
                             end
                         end
                     end
-                end
+                end)
             end)
-            task.wait(0.1) -- Delay entre escaneos
-        end
-    end)
-end
+        end)
+    end
+end)
 
-local Conf = Window:NewTab("Ajustes")
-Conf:NewSection("Menu"):NewKeybind("Abrir/Cerrar", "RightControl", Enum.KeyCode.RightControl, function()
-    Library:ToggleUI()
+Section:NewSlider("Rango", "Distancia de daño", 40, 10, function(s)
+    _G.Range = s
 end)
