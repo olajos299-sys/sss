@@ -1,5 +1,4 @@
 -- JOS HUB V16 (ELTON AOE METHOD FIXED)
-local Kavo = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
 local Window = Kavo.CreateLib("JOS HUB | ELTON LEGACY", "DarkTheme")
 
 _G.KillAura = false
