@@ -1,67 +1,71 @@
--- JOS HUB V14 (ELTON METATABLE BYPASS)
--- Este script se mete en la memoria del juego como lo hace Elton
+-- JOS HUB V16 (ELTON AOE METHOD)
+-- No necesitas mirar a los enemigos. Solo corre cerca de ellos.
 
 local Kavo = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
-local Window = Kavo.CreateLib("JOS HUB | GOD MODE", "DarkTheme")
+local Window = Kavo.CreateLib("JOS HUB | ELTON LEGACY", "DarkTheme")
+
+_G.KillAura = false
+_G.Rango = 25
 
 local Main = Window:NewTab("Combate")
-local Sec = Main:NewSection("Elton's Heartbeat Bypass")
+local Sec = Main:NewSection("Multi-Target Aura")
 
-_G.AuraGod = false
-
-Sec:NewToggle("Activar Kill Aura (Final)", "Bypass total de servidor", function(state)
-    _G.AuraGod = state
+Sec:NewToggle("Activar AOE Kill Aura", "Mata a todos alrededor sin mirar", function(state)
+    _G.KillAura = state
     if state then
-        print("CombatEvent: Not Found. Sincronizando Ticks con Elton...")
-        IniciarAuraGod()
+        print("CombatEvent: Not Found. Iniciando ráfaga AOE...")
+        EjecutarAuraElton()
     end
 end)
 
-function IniciarAuraGod()
+Sec:NewSlider("Radio de Muerte", "Rango de proximidad", 35, 10, function(s)
+    _G.Rango = s
+end)
+
+function EjecutarAuraElton()
     local lp = game.Players.LocalPlayer
     local rs = game:GetService("ReplicatedStorage")
-    local run = game:GetService("RunService")
-    
-    -- Buscamos el Remote pero lo guardamos en una variable oculta
     local remote = rs:FindFirstChild("CombatEvent", true) or rs:FindFirstChild("Hit", true)
 
-    -- EL SECRETO DE IA: Hooking del Heartbeat
-    -- Esto hace que el daño se envíe en el microsegundo exacto que el server abre la puerta
-    run.Heartbeat:Connect(function()
-        if not _G.AuraGod then return end
-        
-        pcall(function()
+    task.spawn(function()
+        while _G.KillAura do
+            local targets = {}
+            
+            -- 1. BUSCAR A TODOS LOS ENEMIGOS EN RANGO SIMULTÁNEAMENTE
             for _, v in pairs(game.Players:GetPlayers()) do
-                if v ~= lp and v.Character and v.Character:FindFirstChild("Humanoid") then
-                    local target = v.Character
-                    local dist = (lp.Character.HumanoidRootPart.Position - target.HumanoidRootPart.Position).Magnitude
-                    
-                    if dist < 22 and target.Humanoid.Health > 0 then
-                        
-                        -- SIMULACIÓN DE MOVIMIENTO DE CÁMARA (Para engañar al Anti-Cheat)
-                        local lookAt = CFrame.new(workspace.CurrentCamera.CFrame.Position, target.HumanoidRootPart.Position)
-                        workspace.CurrentCamera.CFrame = lookAt
-
-                        -- SECUENCIA DE COMBO ELTON (Con firma de CFrame)
-                        local combo = {"Punch1", "Punch2", "Punch3", "Punch4", "PunchDash"}
-                        
-                        -- Seleccionamos un golpe basado en el tiempo del servidor (Tick)
-                        local attack = combo[math.random(1, #combo)]
-                        
-                        -- DISPARO DE RED (Los 4 argumentos clave que Elton usa en su Netlify)
-                        remote:FireServer(
-                            attack, 
-                            target, 
-                            target.HumanoidRootPart.CFrame, 
-                            lp.Character.HumanoidRootPart.CFrame * CFrame.new(0,0,-1)
-                        )
+                if v ~= lp and v.Character and v.Character:FindFirstChild("HumanoidRootPart") then
+                    local dist = (lp.Character.HumanoidRootPart.Position - v.Character.HumanoidRootPart.Position).Magnitude
+                    if dist <= _G.Rango and v.Character.Humanoid.Health > 0 then
+                        table.insert(targets, v.Character)
                     end
                 end
             end
-        end)
+
+            -- 2. DISPARAR RÁFAGA A TODOS (Sin wait interno para que sea instantáneo)
+            for _, char in pairs(targets) do
+                pcall(function()
+                    -- Firma de Elton: Punch aleatorio + PunchDash para romper defensa
+                    local attacks = {"Punch1", "Punch2", "Punch3", "Punch4", "PunchDash"}
+                    local randomAttack = attacks[math.random(1, #attacks)]
+                    
+                    -- Enviamos el daño con la posición relativa (Bypass de validación física)
+                    remote:FireServer(
+                        randomAttack, 
+                        char, 
+                        char.HumanoidRootPart.CFrame, 
+                        lp.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, -1)
+                    )
+                end)
+            end
+
+            -- 3. VELOCIDAD DE REFRESCO (Igual al video de Elton)
+            task.wait(0.08) 
+        end
     end)
 end
 
-Sec:NewSlider("Rango", "Máximo 30 para evitar Kick", 30, 10, function(s)
-    _G.Rango = s
+-- CONFIGURACIÓN DE XENO
+local Config = Window:NewTab("Config")
+Config:NewSection("Menu"):NewKeybind("Ocultar", "RightControl", Enum.KeyCode.RightControl, function()
+    Kavo:ToggleUI()
 end)
