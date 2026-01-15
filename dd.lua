@@ -1,69 +1,60 @@
--- JOS HUB V9 (THE FINAL CORE)
--- Si este no funciona, el problema es que Xeno no permite "Metatable Hooking"
+-- JOS HUB V10 (ELTON'S SECRET METHOD)
+-- Este script activa la animación local para validar el daño
 
-local player = game.Players.LocalPlayer
-local rs = game:GetService("ReplicatedStorage")
-local run = game:GetService("RunService")
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
+local Window = Library.CreateLib("JOS HUB | ELTON BYPASS", "DarkTheme")
 
--- LIMPIEZA TOTAL
-if game.CoreGui:FindFirstChild("JosHubFinal") then game.CoreGui.JosHubFinal:Destroy() end
+local Main = Window:NewTab("Main")
+local Sec = Main:NewSection("Bypass de Animacion")
 
--- INTERFAZ MINIMALISTA (PARA EVITAR CRASH EN XENO)
-local sg = Instance.new("ScreenGui", game.CoreGui); sg.Name = "JosHubFinal"
-local frame = Instance.new("Frame", sg)
-frame.Size = UDim2.new(0, 150, 0, 100); frame.Position = UDim2.new(0.5, -75, 0.5, -50)
-frame.BackgroundColor3 = Color3.new(0,0,0); frame.Active = true; frame.Draggable = true
+_G.Aura = false
 
-local btn = Instance.new("TextButton", frame)
-btn.Size = UDim2.new(1, 0, 1, 0); btn.Text = "ACTIVAR CORE AURA"; btn.TextColor3 = Color3.new(1,1,1)
-btn.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
-
--- LÓGICA DE NIVEL DIOS (HOOKING)
-_G.AuraActiva = false
-
-btn.MouseButton1Click:Connect(function()
-    _G.AuraActiva = not _G.AuraActiva
-    btn.BackgroundColor3 = _G.AuraActiva and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
-    btn.Text = _G.AuraActiva and "AURA ONLINE" or "AURA OFFLINE"
-    
-    -- EL MENSAJE DEL VIDEO
-    if _G.AuraActiva then
-        print("CombatEvent: Not Found. Initializing Memory Bypass...")
+Sec:NewToggle("Kill Aura (Animation Hook)", "Obliga al servidor a aceptar el daño", function(state)
+    _G.Aura = state
+    if state then
+        print("CombatEvent: Not Found. Sincronizando animaciones...")
+        IniciarAura()
     end
 end)
 
--- EL MOTOR DE DAÑO (ESTO ES LO QUE HACE KZ HUB)
-run.RenderStepped:Connect(function()
-    if not _G.AuraActiva then return end
-    
-    pcall(function()
-        local character = player.Character
-        local root = character.HumanoidRootPart
-        local combatRemote = rs:FindFirstChild("CombatEvent", true) or rs:FindFirstChild("Hit", true)
+function IniciarAura()
+    local lp = game.Players.LocalPlayer
+    local rs = game:GetService("ReplicatedStorage")
+    local remote = rs:FindFirstChild("CombatEvent", true) or rs:FindFirstChild("Hit", true)
 
-        for _, enemy in pairs(game.Players:GetPlayers()) do
-            if enemy ~= player and enemy.Character and enemy.Character:FindFirstChild("Humanoid") then
-                local eRoot = enemy.Character.HumanoidRootPart
-                local dist = (root.Position - eRoot.Position).Magnitude
-                
-                if dist < 22 and enemy.Character.Humanoid.Health > 0 then
-                    -- SECRETO: El servidor pide que el ataque coincida con el frame de renderizado
-                    -- Enviamos la tabla completa de argumentos que usa el juego original
-                    local args = {
-                        [1] = "Punch" .. math.random(1,4), -- Randomizar para bypass
-                        [2] = enemy.Character,
-                        [3] = eRoot.CFrame, -- IMPORTANTE: El servidor pide CFrame, no solo Position
-                        [4] = root.CFrame * CFrame.new(0, 0, -2) -- Simula el punto de impacto
-                    }
-                    
-                    combatRemote:FireServer(unpack(args))
-                    
-                    -- FORZAR DAÑO CRÍTICO (SIMULACIÓN DE PUNCHDASH)
-                    if math.random(1,5) == 3 then
-                        combatRemote:FireServer("PunchDash", enemy.Character, eRoot.CFrame)
+    task.spawn(function()
+        while _G.Aura do
+            pcall(function()
+                for _, enemy in pairs(game.Players:GetPlayers()) do
+                    if enemy ~= lp and enemy.Character and enemy.Character:FindFirstChild("Humanoid") then
+                        local eRoot = enemy.Character.HumanoidRootPart
+                        local myRoot = lp.Character.HumanoidRootPart
+                        
+                        if (myRoot.Position - eRoot.Position).Magnitude < 22 and enemy.Character.Humanoid.Health > 0 then
+                            
+                            -- EL SECRETO DE ELTON:
+                            -- 1. Mirar al enemigo
+                            myRoot.CFrame = CFrame.new(myRoot.Position, Vector3.new(eRoot.Position.X, myRoot.Position.Y, eRoot.Position.Z))
+                            
+                            -- 2. Forzar Animación Local (Sin esto el daño es 0)
+                            local anim = Instance.new("Animation")
+                            anim.AnimationId = "rbxassetid://15243144578" -- ID de golpe de UBG
+                            local load = lp.Character.Humanoid:LoadAnimation(anim)
+                            load:Play()
+
+                            -- 3. Enviar el Daño exacto de KZ Hub
+                            local combo = {"Punch1", "Punch2", "Punch3", "Punch4", "PunchDash"}
+                            for i = 1, #combo do
+                                remote:FireServer(combo[i], enemy.Character)
+                                task.wait(0.01)
+                            end
+                            
+                            task.wait(0.1) -- Cooldown
+                        end
                     end
                 end
-            end
+            end)
+            task.wait(0.05)
         end
     end)
-end)
+end
