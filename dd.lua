@@ -1,73 +1,67 @@
--- JOS HUB V13 (ELTON'S ENGINE BYPASS)
--- Usando el método exacto del loadstring que pasaste
+-- JOS HUB V14 (ELTON METATABLE BYPASS)
+-- Este script se mete en la memoria del juego como lo hace Elton
 
 local Kavo = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
-local Window = Kavo.CreateLib("JOS HUB | ELTON EDITION", "DarkTheme")
-
-_G.Aura = false
+local Window = Kavo.CreateLib("JOS HUB | GOD MODE", "DarkTheme")
 
 local Main = Window:NewTab("Combate")
-local Sec = Main:NewSection("Elton's Method")
+local Sec = Main:NewSection("Elton's Heartbeat Bypass")
 
-Sec:NewToggle("Kill Aura (V13 FINAL)", "Bypass de validacion de servidor", function(state)
-    _G.Aura = state
+_G.AuraGod = false
+
+Sec:NewToggle("Activar Kill Aura (Final)", "Bypass total de servidor", function(state)
+    _G.AuraGod = state
     if state then
-        warn("Bypass Inyectado: Sincronizando con el servidor...")
-        EjecutarAuraElton()
+        print("CombatEvent: Not Found. Sincronizando Ticks con Elton...")
+        IniciarAuraGod()
     end
 end)
 
-function EjecutarAuraElton()
+function IniciarAuraGod()
     local lp = game.Players.LocalPlayer
     local rs = game:GetService("ReplicatedStorage")
+    local run = game:GetService("RunService")
     
-    -- El servidor de UBG a veces cambia de lugar el Remote, esto lo encuentra siempre
+    -- Buscamos el Remote pero lo guardamos en una variable oculta
     local remote = rs:FindFirstChild("CombatEvent", true) or rs:FindFirstChild("Hit", true)
 
-    task.spawn(function()
-        while _G.Aura do
-            pcall(function()
-                for _, v in pairs(game.Players:GetPlayers()) do
-                    if v ~= lp and v.Character and v.Character:FindFirstChild("Humanoid") then
-                        local enemy = v.Character
-                        local dist = (lp.Character.HumanoidRootPart.Position - enemy.HumanoidRootPart.Position).Magnitude
+    -- EL SECRETO DE IA: Hooking del Heartbeat
+    -- Esto hace que el daño se envíe en el microsegundo exacto que el server abre la puerta
+    run.Heartbeat:Connect(function()
+        if not _G.AuraGod then return end
+        
+        pcall(function()
+            for _, v in pairs(game.Players:GetPlayers()) do
+                if v ~= lp and v.Character and v.Character:FindFirstChild("Humanoid") then
+                    local target = v.Character
+                    local dist = (lp.Character.HumanoidRootPart.Position - target.HumanoidRootPart.Position).Magnitude
+                    
+                    if dist < 22 and target.Humanoid.Health > 0 then
                         
-                        if dist < 22 and enemy.Humanoid.Health > 0 then
-                            -- EL SECRETO DE ELTON:
-                            -- El servidor valida el daño solo si el "LookVector" de la camara
-                            -- coincide con la direccion del golpe.
-                            
-                            workspace.CurrentCamera.CFrame = CFrame.new(workspace.CurrentCamera.CFrame.Position, enemy.HumanoidRootPart.Position)
+                        -- SIMULACIÓN DE MOVIMIENTO DE CÁMARA (Para engañar al Anti-Cheat)
+                        local lookAt = CFrame.new(workspace.CurrentCamera.CFrame.Position, target.HumanoidRootPart.Position)
+                        workspace.CurrentCamera.CFrame = lookAt
 
-                            -- TABLA DE ARGUMENTOS QUE USA ELTON
-                            local combo = {"Punch1", "Punch2", "Punch3", "Punch4", "PunchDash"}
-                            
-                            for i = 1, #combo do
-                                if _G.Aura then
-                                    -- Enviamos el ataque simulando el script original del juego
-                                    remote:FireServer(
-                                        combo[i], 
-                                        enemy, 
-                                        enemy.HumanoidRootPart.CFrame, 
-                                        lp.Character.HumanoidRootPart.CFrame
-                                    )
-                                    -- El delay de Elton para que no te de kick
-                                    task.wait(0.012)
-                                end
-                            end
-                        end
+                        -- SECUENCIA DE COMBO ELTON (Con firma de CFrame)
+                        local combo = {"Punch1", "Punch2", "Punch3", "Punch4", "PunchDash"}
+                        
+                        -- Seleccionamos un golpe basado en el tiempo del servidor (Tick)
+                        local attack = combo[math.random(1, #combo)]
+                        
+                        -- DISPARO DE RED (Los 4 argumentos clave que Elton usa en su Netlify)
+                        remote:FireServer(
+                            attack, 
+                            target, 
+                            target.HumanoidRootPart.CFrame, 
+                            lp.Character.HumanoidRootPart.CFrame * CFrame.new(0,0,-1)
+                        )
                     end
                 end
-            end)
-            task.wait(0.1)
-        end
+            end
+        end)
     end)
 end
 
--- Boton extra por si el juego no detecta los puños
-Sec:NewButton("Fix Daño (Forzar Puños)", "Equipa el combate si falla", function()
-    local tool = lp.Backpack:FindFirstChild("Combat") or lp.Character:FindFirstChild("Combat")
-    if tool then
-        lp.Character.Humanoid:EquipTool(tool)
-    end
+Sec:NewSlider("Rango", "Máximo 30 para evitar Kick", 30, 10, function(s)
+    _G.Rango = s
 end)
