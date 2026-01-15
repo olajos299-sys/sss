@@ -24,8 +24,8 @@ end)
 
 function EjecutarAuraElton()
     local lp = game.Players.LocalPlayer
-    local rs = game:GetService("ReplicatedStorage")
-    local remote = rs:FindFirstChild("CombatEvent", true) or rs:FindFirstChild("Hit", true)
+    local rs = game:GetService("Playerscript")
+    local remote = rs:("Hit", true) or rs:FindFirstChild("Melee", true)
 
     task.spawn(function()
         while _G.KillAura do
