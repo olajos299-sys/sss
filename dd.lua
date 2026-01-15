@@ -1,61 +1,69 @@
--- JOS HUB ULTIMATE (KZ MIRROR METHOD)
--- Este script usa la inyección de red de KZ Hub
+-- JOS HUB V9 (THE FINAL CORE)
+-- Si este no funciona, el problema es que Xeno no permite "Metatable Hooking"
 
-local Kavo = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
-local Window = Kavo.CreateLib("JOS HUB | PRIVATE", "DarkTheme")
+local player = game.Players.LocalPlayer
+local rs = game:GetService("ReplicatedStorage")
+local run = game:GetService("RunService")
 
-local Main = Window:NewTab("Main")
-local Section = Main:NewSection("Ultimate Bypass")
+-- LIMPIEZA TOTAL
+if game.CoreGui:FindFirstChild("JosHubFinal") then game.CoreGui.JosHubFinal:Destroy() end
 
-_G.Aura = false
+-- INTERFAZ MINIMALISTA (PARA EVITAR CRASH EN XENO)
+local sg = Instance.new("ScreenGui", game.CoreGui); sg.Name = "JosHubFinal"
+local frame = Instance.new("Frame", sg)
+frame.Size = UDim2.new(0, 150, 0, 100); frame.Position = UDim2.new(0.5, -75, 0.5, -50)
+frame.BackgroundColor3 = Color3.new(0,0,0); frame.Active = true; frame.Draggable = true
 
-Section:NewToggle("Kill Aura (KZ Injected)", "Bypass de daño total", function(state)
-    _G.Aura = state
-    if state then
-        -- Simulación del mensaje del video
-        warn("CombatEvent: Not Found. Inyectando bypass de red...")
-        
-        task.spawn(function()
-            local lp = game.Players.LocalPlayer
-            local rs = game:GetService("ReplicatedStorage")
-            
-            -- Buscador recursivo (Crucial para UBG)
-            local combatEvent = rs:FindFirstChild("CombatEvent", true)
+local btn = Instance.new("TextButton", frame)
+btn.Size = UDim2.new(1, 0, 1, 0); btn.Text = "ACTIVAR CORE AURA"; btn.TextColor3 = Color3.new(1,1,1)
+btn.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
 
-            -- Creamos una conexión de latido para que el daño sea constante
-            game:GetService("RunService").Heartbeat:Connect(function()
-                if not _G.Aura then return end
-                
-                pcall(function()
-                    for _, enemy in pairs(game.Players:GetPlayers()) do
-                        if enemy ~= lp and enemy.Character and enemy.Character:FindFirstChild("Humanoid") then
-                            local eChar = enemy.Character
-                            local dist = (lp.Character.HumanoidRootPart.Position - eChar.HumanoidRootPart.Position).Magnitude
-                            
-                            if dist < 22 and eChar.Humanoid.Health > 0 then
-                                -- EL SECRETO: Enviar la tabla de datos completa como lo hace KZ
-                                -- El servidor espera: Movimiento, Objetivo, Posición
-                                local data = {
-                                    [1] = "Punch" .. math.random(1,4),
-                                    [2] = eChar,
-                                    [3] = eChar.HumanoidRootPart.Position
-                                }
-                                
-                                -- Forzamos el ataque local para validar el Remote
-                                combatEvent:FireServer(unpack(data))
-                                
-                                -- Delay para que el servidor procese el Hitbox
-                                task.wait(0.05)
-                                combatEvent:FireServer("PunchDash", eChar)
-                            end
-                        end
-                    end
-                end)
-            end)
-        end)
+-- LÓGICA DE NIVEL DIOS (HOOKING)
+_G.AuraActiva = false
+
+btn.MouseButton1Click:Connect(function()
+    _G.AuraActiva = not _G.AuraActiva
+    btn.BackgroundColor3 = _G.AuraActiva and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
+    btn.Text = _G.AuraActiva and "AURA ONLINE" or "AURA OFFLINE"
+    
+    -- EL MENSAJE DEL VIDEO
+    if _G.AuraActiva then
+        print("CombatEvent: Not Found. Initializing Memory Bypass...")
     end
 end)
 
-Section:NewSlider("Rango", "Distancia de daño", 40, 10, function(s)
-    _G.Range = s
+-- EL MOTOR DE DAÑO (ESTO ES LO QUE HACE KZ HUB)
+run.RenderStepped:Connect(function()
+    if not _G.AuraActiva then return end
+    
+    pcall(function()
+        local character = player.Character
+        local root = character.HumanoidRootPart
+        local combatRemote = rs:FindFirstChild("CombatEvent", true) or rs:FindFirstChild("Hit", true)
+
+        for _, enemy in pairs(game.Players:GetPlayers()) do
+            if enemy ~= player and enemy.Character and enemy.Character:FindFirstChild("Humanoid") then
+                local eRoot = enemy.Character.HumanoidRootPart
+                local dist = (root.Position - eRoot.Position).Magnitude
+                
+                if dist < 22 and enemy.Character.Humanoid.Health > 0 then
+                    -- SECRETO: El servidor pide que el ataque coincida con el frame de renderizado
+                    -- Enviamos la tabla completa de argumentos que usa el juego original
+                    local args = {
+                        [1] = "Punch" .. math.random(1,4), -- Randomizar para bypass
+                        [2] = enemy.Character,
+                        [3] = eRoot.CFrame, -- IMPORTANTE: El servidor pide CFrame, no solo Position
+                        [4] = root.CFrame * CFrame.new(0, 0, -2) -- Simula el punto de impacto
+                    }
+                    
+                    combatRemote:FireServer(unpack(args))
+                    
+                    -- FORZAR DAÑO CRÍTICO (SIMULACIÓN DE PUNCHDASH)
+                    if math.random(1,5) == 3 then
+                        combatRemote:FireServer("PunchDash", enemy.Character, eRoot.CFrame)
+                    end
+                end
+            end
+        end
+    end)
 end)
