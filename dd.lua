@@ -12,7 +12,7 @@ Section:NewToggle("Kill Aura (KZ Method)", "Este SI hace daño", function(state)
     _G.KillAura = state
     if state then
         -- Mensaje de confirmación del video
-        print("CombatEvent: Not Found. Starting Jos Hub Damage Sequence...")
+        print("Starting Jos Hub Damage Sequence...")
 
         task.spawn(function()
             local lp = game.Players.LocalPlayer
