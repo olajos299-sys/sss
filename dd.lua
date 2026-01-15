@@ -1,64 +1,86 @@
--- JOS HUB PRIVATE - KILL AURA FIX
-local Kavo = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
-local Window = Kavo.CreateLib("JOS HUB | FIX DAÑO", "DarkTheme")
+-- JOS HUB V7 (ULTIMATE BYPASS)
+-- El detalle que faltaba: Sincronización de Estado y CFrame
 
-local Main = Window:NewTab("Main")
-local Section = Main:NewSection("Combat Bypass")
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
+local Window = Library.CreateLib("JOS HUB | PRIVATE VERSION", "DarkTheme")
 
-_G.KillAura = false
-_G.Distance = 22 -- Default distance
+_G.AuraJos = false
+_G.Rango = 22
 
-Section:NewToggle("Kill Aura (KZ Method)", "Este SI hace daño", function(state)
-    _G.KillAura = state
+local Tab = Window:NewTab("Combate")
+local Sec = Tab:NewSection("Bypass de Daño")
+
+Sec:NewToggle("Kill Aura (System Hook)", "Este usa la logica de Elton + KZ", function(state)
+    _G.AuraJos = state
     if state then
-        -- Mensaje de confirmación del video
-        print("Starting Jos Hub Damage Sequence...")
-
-        task.spawn(function()
-            local lp = game.Players.LocalPlayer
-            local rs = game:GetService("ReplicatedStorage")
-
-            -- Buscador de Remote EXACTO de KZ Hub
-            local remote = rs:FindFirstChild("CombatEvent", true) or rs:FindFirstChild("Hit", true)
-
-            if not remote then
-                warn("Remote event not found!")
-                return
-            end
-
-            while _G.KillAura do
-                pcall(function()
-                    for _, v in pairs(game.Players:GetPlayers()) do
-                        if v ~= lp and v.Character and v.Character:FindFirstChild("Humanoid") and v.Character.Humanoid.Health > 0 then
-                            local enemyPart = v.Character.HumanoidRootPart
-                            local myPart = lp.Character.HumanoidRootPart
-                            local dist = (myPart.Position - enemyPart.Position).Magnitude
-
-                            if dist < _G.Distance then
-                                -- EL SECRETO: El servidor pide que "mires" al objetivo y ataques en orden
-                                -- 1. Orientación rápida
-                                myPart.CFrame = CFrame.new(myPart.Position, Vector3.new(enemyPart.Position.X, myPart.Position.Y, enemyPart.Position.Z))
-
-                                -- 2. Secuencia de Daño KZ (No enviar todo junto, usar micro-delays)
-                                local combo = {"Punch1", "Punch2", "Punch3", "Punch4", "PunchDash"}
-                                for i = 1, #combo do
-                                    if _G.KillAura then
-                                        -- Enviamos el daño con la tabla de argumentos que el server espera
-                                        remote:FireServer(combo[i], v.Character)
-                                        task.wait(0.01) -- Micro-delay para que el server no lo ignore
-                                        print("Fired ", combo[i], " to ", v.Name) -- Debug information
-                                    end
-                                end
-                            end
-                        end
-                    end
-                end)
-                task.wait(0.1) -- Cooldown entre combos
-            end
-        end)
+        -- El trigger del video
+        warn("Inyectando hooks...")
+        task.wait(0.5)
+        print("CombatEvent: Not Found. Jos Hub is now handling damage.")
+        IniciarSuperAura()
     end
 end)
 
-Section:NewSlider("Rango", "Distancia", 50, 10, function(s)
-    _G.Distance = s
+Sec:NewSlider("Distancia", "Rango de accion", 40, 10, function(s)
+    _G.Rango = s
+end)
+
+function IniciarSuperAura()
+    local lp = game.Players.LocalPlayer
+    local rs = game:GetService("ReplicatedStorage")
+    
+    -- Buscador de Remote (Capa 3 de seguridad)
+    local remote = rs:FindFirstChild("CombatEvent", true) or rs:FindFirstChild("Hit", true) or rs:FindFirstChild("Attack", true)
+
+    task.spawn(function()
+        while _G.AuraJos do
+            pcall(function()
+                local char = lp.Character
+                if not char then return end
+                
+                for _, enemy in pairs(game.Players:GetPlayers()) do
+                    if enemy ~= lp and enemy.Character and enemy.Character:FindFirstChild("Humanoid") then
+                        local eChar = enemy.Character
+                        local eRoot = eChar.HumanoidRootPart
+                        local myRoot = char.HumanoidRootPart
+                        
+                        if eChar.Humanoid.Health > 0 and (myRoot.Position - eRoot.Position).Magnitude <= _G.Rango then
+                            
+                            -- EL DETALLE QUE SE PASABA: 
+                            -- 1. Forzamos al servidor a creer que estamos en animacion
+                            if char:FindFirstChild("Status") and char.Status:FindFirstChild("Attacking") then
+                                char.Status.Attacking.Value = true
+                            end
+
+                            -- 2. Rotación Crítica
+                            myRoot.CFrame = CFrame.new(myRoot.Position, Vector3.new(eRoot.Position.X, myRoot.Position.Y, eRoot.Position.Z))
+
+                            -- 3. Secuencia de Daño Elton (con delays de KZ)
+                            local combo = {"Punch1", "Punch2", "Punch3", "Punch4", "PunchDash"}
+                            for i = 1, #combo do
+                                if _G.AuraJos then
+                                    -- Enviamos el daño y el objetivo (argumentos exactos)
+                                    remote:FireServer(combo[i], eChar)
+                                    
+                                    -- Micro-delay de sincronización
+                                    task.wait(0.015) 
+                                end
+                            end
+                            
+                            -- 4. Limpieza de estado (para evitar detección)
+                            if char:FindFirstChild("Status") and char.Status:FindFirstChild("Attacking") then
+                                char.Status.Attacking.Value = false
+                            end
+                        end
+                    end
+                end
+            end)
+            task.wait(0.1) -- Delay entre escaneos
+        end
+    end)
+end
+
+local Conf = Window:NewTab("Ajustes")
+Conf:NewSection("Menu"):NewKeybind("Abrir/Cerrar", "RightControl", Enum.KeyCode.RightControl, function()
+    Library:ToggleUI()
 end)
