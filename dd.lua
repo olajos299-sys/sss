@@ -1,6 +1,4 @@
--- JOS HUB V16 (ELTON AOE METHOD)
--- No necesitas mirar a los enemigos. Solo corre cerca de ellos.
-
+-- JOS HUB V16 (ELTON AOE METHOD FIXED)
 local Kavo = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
 local Window = Kavo.CreateLib("JOS HUB | ELTON LEGACY", "DarkTheme")
 
@@ -10,30 +8,25 @@ _G.Rango = 25
 local Main = Window:NewTab("Combate")
 local Sec = Main:NewSection("Multi-Target Aura")
 
-Sec:NewToggle("Activar AOE Kill Aura", "Mata a todos alrededor sin mirar", function(state)
-    _G.KillAura = state
-    if state then
-        print("CombatEvent: Not Found. Iniciando ráfaga AOE...")
-        EjecutarAuraElton()
-    end
-end)
-
-Sec:NewSlider("Radio de Muerte", "Rango de proximidad", 35, 10, function(s)
-    _G.Rango = s
-end)
+-- Intentamos encontrar el Remote de daño (ajusta el nombre según tu juego)
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Remote = ReplicatedStorage:FindFirstChild("Hit") or ReplicatedStorage:FindFirstChild("Melee") or ReplicatedStorage:FindFirstChild("CombatEvent")
 
 function EjecutarAuraElton()
     local lp = game.Players.LocalPlayer
-    local rs = game:GetService("Playerscript")
-    local remote = rs:("Hit", true) or rs:FindFirstChild("Melee", true)
-
+    
     task.spawn(function()
         while _G.KillAura do
+            if not lp.Character or not lp.Character:FindFirstChild("HumanoidRootPart") then 
+                task.wait(1) 
+                continue 
+            end
+
             local targets = {}
             
-            -- 1. BUSCAR A TODOS LOS ENEMIGOS EN RANGO SIMULTÁNEAMENTE
+            -- 1. BUSCAR OBJETIVOS
             for _, v in pairs(game.Players:GetPlayers()) do
-                if v ~= lp and v.Character and v.Character:FindFirstChild("HumanoidRootPart") then
+                if v ~= lp and v.Character and v.Character:FindFirstChild("HumanoidRootPart") and v.Character:FindFirstChild("Humanoid") then
                     local dist = (lp.Character.HumanoidRootPart.Position - v.Character.HumanoidRootPart.Position).Magnitude
                     if dist <= _G.Rango and v.Character.Humanoid.Health > 0 then
                         table.insert(targets, v.Character)
@@ -41,30 +34,41 @@ function EjecutarAuraElton()
                 end
             end
 
-            -- 2. DISPARAR RÁFAGA A TODOS (Sin wait interno para que sea instantáneo)
+            -- 2. ATAQUE AOE
             for _, char in pairs(targets) do
+                if not _G.KillAura then break end
                 pcall(function()
-                    -- Firma de Elton: Punch aleatorio + PunchDash para romper defensa
                     local attacks = {"Punch1", "Punch2", "Punch3", "Punch4", "PunchDash"}
                     local randomAttack = attacks[math.random(1, #attacks)]
                     
-                    -- Enviamos el daño con la posición relativa (Bypass de validación física)
-                    remote:FireServer(
-                        randomAttack, 
-                        char, 
-                        char.HumanoidRootPart.CFrame, 
-                        lp.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, -1)
-                    )
+                    -- Solo disparamos si el Remote existe
+                    if Remote then
+                        Remote:FireServer(
+                            randomAttack, 
+                            char, 
+                            char.HumanoidRootPart.CFrame, 
+                            lp.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, -1)
+                        )
+                    end
                 end)
             end
 
-            -- 3. VELOCIDAD DE REFRESCO (Igual al video de Elton)
-            task.wait(0.08) 
+            task.wait(0.1) -- Un poco más lento para evitar Kick por Flood
         end
     end)
 end
 
--- CONFIGURACIÓN DE XENO
+Sec:NewToggle("Activar AOE Kill Aura", "Mata a todos alrededor", function(state)
+    _G.KillAura = state
+    if state then
+        EjecutarAuraElton()
+    end
+end)
+
+Sec:NewSlider("Radio de Muerte", "Rango de proximidad", 50, 10, function(s)
+    _G.Rango = s
+end)
+
 local Config = Window:NewTab("Config")
 Config:NewSection("Menu"):NewKeybind("Ocultar", "RightControl", Enum.KeyCode.RightControl, function()
     Kavo:ToggleUI()
