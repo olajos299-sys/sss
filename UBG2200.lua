@@ -1,294 +1,95 @@
-
--- JOSHUB ULTIMATE EDITION BY JOS
--- TODAS LAS FUNCIONES RESTAURADAS + ESTRUCTURA SEGURA
-
--- [1] VARIABLES GLOBALES Y CONFIGURACIONES ORIGINALES
-getgenv().Configs = {
-    AuraEnabled = false,
-    AuraKey = "None",
-    InstantKillRange = 60,
-    Whitelist = {},
-    IgnoreFriends = false,
-    MaxDistance = 60
-}
-
-local WallSettings = {
-    Enabled = false,
-    AttackSpeed = 1,
-    HitsPerFrame = 2,
-    CustomKey = "None",
-    SelectedKey = Enum.KeyCode.I
-}
-
-local ConfigKillEmotes = {
-    Enabled = false,
-    Mode = "Random",
-    SelectedEmote = "",
-    OneShotEmote = "",
-    IgnoreFriends = false,
-    Speed = 0.01,
-    Radius = 15,
-    CustomKey = "None",
-    OneShotKey = "None"
-}
-
+-- JOS HUB V4.1: ULTRA-HIGH BATTLE VISION
+local Player = game.Players.LocalPlayer
+local Mouse = Player:GetMouse()
+local Camera = workspace.CurrentCamera
 local RunService = game:GetService("RunService")
-local Players = game:GetService("Players")
-local TweenService = game:GetService("TweenService")
-local Lighting = game:GetService("Lighting")
-local HttpService = game:GetService("HttpService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local UserInputService = game:GetService("UserInputService")
-local Workspace = game:GetService("Workspace")
-local LocalPlayer = Players.LocalPlayer
-local Core = require(ReplicatedStorage:WaitForChild("Core", 9e9))
+local TeleportService = game:GetService("TeleportService")
 
--- [2] FUNCIONES DE UTILIDAD (TRASPLANTE TOTAL)
-local function HRP() return LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") end
+-- CONFIGURACIÓN DE VISIÓN ELEVADA
+local Keybind = "t"
+local Prediction = 0.12
+local Smoothness = 0.25 -- Aumentado para que el loop sea fluido desde arriba
 
-local function run_as_identity_2(fn)
-    local set_id = (syn and syn.set_thread_identity) or setthreadidentity
-    local get_id = (syn and syn.get_thread_identity) or getthreadidentity
-    local prev = get_id and get_id() or 2
-    if set_id then pcall(set_id, 2) end
-    local ok, res = pcall(fn)
-    if set_id then pcall(set_id, prev) end
-    return ok and res or nil
-end
+-- AJUSTES DE CÁMARA (Modifica estos para subir más la vista)
+local VerticalLookOffset = -2 -- NEGATIVO hace que la cámara mire más al suelo (subiendo la vista)
+local CameraHeightBonus = 4   -- Añade altura extra a tu cámara actual
 
-local function getAllTargets(range)
-    local targets = {}
-    local myHrp = HRP()
-    if not myHrp then return targets end
-    local lpName = LocalPlayer.Name
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and not table.find(getgenv().Configs.Whitelist, player.Name) then
-            local character = player.Character
-            if character and character:FindFirstChild("HumanoidRootPart") and character:FindFirstChild("Humanoid") then
-                local distance = (myHrp.Position - character.HumanoidRootPart.Position).Magnitude
-                if distance <= range and character.Humanoid.Health > 0 then
-                    local isValid = (not character:GetAttribute("Safety") and 
-                                    ((not character:GetAttribute("Grabbed") or character:GetAttribute("Grabbed") == lpName) and 
-                                    (not character:GetAttribute("Victim") or character:GetAttribute("Victim") == lpName)) and 
-                                    not character:GetAttribute("Grabbing"))
-                    if isValid then table.insert(targets, character) end
-                end
+local Target = nil
+local Locked = false
+
+--- [ INTERFAZ ] ---
+local sg = Instance.new("ScreenGui", game.CoreGui); sg.Name = "JosHub_V4_1"
+local frame = Instance.new("Frame", sg)
+frame.Size = UDim2.new(0, 140, 0, 90); frame.Position = UDim2.new(0, 50, 0.5, -45)
+frame.BackgroundColor3 = Color3.fromRGB(5, 5, 5); frame.Active = true; frame.Draggable = true
+
+local title = Instance.new("TextLabel", frame)
+title.Size = UDim2.new(1, 0, 0, 25); title.Text = "JOS HIGH VISION"; title.TextColor3 = Color3.new(1, 1, 1)
+title.BackgroundColor3 = Color3.fromRGB(100, 50, 0)
+
+local lockStatus = Instance.new("TextLabel", frame)
+lockStatus.Size = UDim2.new(1, 0, 0, 30); lockStatus.Position = UDim2.new(0, 0, 0, 25)
+lockStatus.Text = "LOCK: OFF"; lockStatus.TextColor3 = Color3.fromRGB(255, 50, 50); lockStatus.BackgroundTransparency = 1
+
+local rjButton = Instance.new("TextButton", frame)
+rjButton.Size = UDim2.new(0.9, 0, 0, 25); rjButton.Position = UDim2.new(0.05, 0, 0, 60)
+rjButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30); rjButton.Text = "REJOIN [P]"; rjButton.TextColor3 = Color3.new(1, 1, 1)
+
+--- [ LÓGICA ] ---
+
+function GetClosest()
+    local closestDist = math.huge
+    local closestObj = nil
+    for _, v in pairs(game.Players:GetPlayers()) do
+        if v ~= Player and v.Character and v.Character:FindFirstChild("HumanoidRootPart") and v.Character.Humanoid.Health > 0 then
+            local screenPos, onScreen = Camera:WorldToViewportPoint(v.Character.HumanoidRootPart.Position)
+            if onScreen then
+                local dist = (Vector2.new(Mouse.X, Mouse.Y) - Vector2.new(screenPos.X, screenPos.Y)).Magnitude
+                if dist < closestDist then closestDist = dist; closestObj = v.Character end
             end
         end
     end
-    return targets
+    return closestObj
 end
 
--- Lógica de Mass Kill / Spam
-local function MassKill()
-    local targets = getAllTargets(getgenv().Configs.InstantKillRange) 
-    if #targets == 0 then return end
-    local data = LocalPlayer:FindFirstChild("Data")
-    local charVal = data and data:FindFirstChild("Character") and data.Character.Value
-    if not charVal then return end
-    local charFolder = ReplicatedStorage.Characters:FindFirstChild(charVal)
-    if charFolder and charFolder:FindFirstChild("WallCombo") then
-        local WallCombo = charFolder.WallCombo
-        local multiHitList = {}
-        local stackCount = (charVal == "Gon") and 20 or 50
-        for _, victimChar in ipairs(targets) do
-            for i = 1, stackCount do table.insert(multiHitList, victimChar) end
-        end
-        ReplicatedStorage.Remotes.Abilities.Ability:FireServer(WallCombo, 69)
-        ReplicatedStorage.Remotes.Combat.Action:FireServer(WallCombo, "", 4, 69, {
-            BestHitCharacter = nil,
-            HitCharacters = multiHitList,
-            Ignore = {},
-            Actions = {}
-        })
-    end
-end
-
--- [3] INICIALIZACIÓN DE LA UI JOSHUB
-local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
-
-WindUI:AddTheme({
-    Name = "JoshubDark",
-    Background = WindUI:Gradient({ 
-        ["0"] = { Color = Color3.fromHex("#001a00"), Transparency = 0 },
-        ["100"] = { Color = Color3.fromHex("#004d00"), Transparency = 0 },
-    }, { Rotation = 45 }),
-    Accent = Color3.fromHex("#30FF6A"),
-    Outline = Color3.fromHex("#1c1c20"),
-    Text = Color3.fromHex("#FFFFFF"),
-    Placeholder = Color3.fromHex("#7a7a7a"),
-    Button = Color3.fromHex("#1f1f23"),
-    Icon = Color3.fromHex("#FFFFFF"),
-})
-
-local Window = WindUI:CreateWindow({
-    Title = "Joshub|UBG",
-    Author = "by jos",
-    Folder = "Joshub",
-    Icon = "swords",
-    IconSize = 32,
-    Theme = "JoshubDark",
-    OpenButton = { Title = "Joshub", Enabled = true, Draggable = true, Color = ColorSequence.new(Color3.fromHex("#30FF6A")) }
-})
-
--- PESTAÑAS
-local HomeTab = Window:Tab({ Title = "Home", Icon = "house", Color = Color3.fromHex("#4CAF50") })
-local MainTab = Window:Tab({ Title = "Combat", Icon = "sword", Color = Color3.fromHex("#4CAF50") })
-local CharacterTab = Window:Tab({ Title = "Character", Icon = "user", Color = Color3.fromHex("#4CAF50") })
-local VisualTab = Window:Tab({ Title = "Visual", Icon = "eye", Color = Color3.fromHex("#4CAF50") })
-local WorldTab = Window:Tab({ Title = "World", Icon = "globe", Color = Color3.fromHex("#4CAF50") })
-local EmotesTab = Window:Tab({ Title = "Emotes", Icon = "accessibility", Color = Color3.fromHex("#4CAF50") })
-local SettingsTab = Window:Tab({ Title = "Settings", Icon = "settings", Color = Color3.fromHex("#4CAF50") })
-
--- [4] RESTAURACIÓN DE FUNCIONES (COMBAT)
-MainTab:Section({ Title = "Kill Aura & Wall Spam" })
-
-MainTab:Toggle({
-    Title = "Kill Aura (Spam)",
-    Default = false,
-    Callback = function(state)
-        getgenv().Configs.AuraEnabled = state
-        if state then
-            task.spawn(function()
-                while getgenv().Configs.AuraEnabled do
-                    MassKill()
-                    task.wait()
-                end
-            end)
-        end
-    end
-})
-
-MainTab:Slider({
-    Title = "Aura Range",
-    Step = 1,
-    Value = { Min = 5, Max = 60, Default = 60 },
-    Callback = function(v) getgenv().Configs.InstantKillRange = v end
-})
-
-MainTab:Section({ Title = "Wall Combo Spam" })
-
-local function execute_wall_logic()
-    if not WallSettings.Enabled then return end
-    local char = LocalPlayer.Character
-    if not char or not char:FindFirstChild("Head") then return end
-    local data = LocalPlayer:FindFirstChild("Data")
-    local charName = data and data:FindFirstChild("Character") and data.Character.Value
-    if not charName then return end
-    local skill = ReplicatedStorage.Characters[charName]:FindFirstChild("WallCombo")
-    if not skill then return end
-    local hitRes = run_as_identity_2(function()
-        return Core.Get("Combat", "Hit").Box(nil, char, {Size = Vector3.new(50, 50, 50)})
-    end)
-    if hitRes then
-        run_as_identity_2(function()
-            local hits = WallSettings.AttackSpeed * 2 
-            for i = 1, hits do
-                if not WallSettings.Enabled then break end
-                pcall(Core.Get("Combat", "Ability").Activate, skill, hitRes, char.Head.Position + Vector3.new(0, 0, 2.5))
+Mouse.KeyDown:Connect(function(k)
+    if k:lower() == Keybind then
+        Locked = not Locked
+        if Locked then
+            Target = GetClosest()
+            if not Target then Locked = false else
+                lockStatus.Text = "LOCK: ON"; lockStatus.TextColor3 = Color3.fromRGB(50, 255, 50)
             end
-        end)
-    end
-end
-
-RunService.Heartbeat:Connect(function()
-    if WallSettings.Enabled then
-        for i = 1, WallSettings.HitsPerFrame do
-            if not WallSettings.Enabled then break end
-            task.spawn(execute_wall_logic)
+        else
+            Target = nil
+            lockStatus.Text = "LOCK: OFF"; lockStatus.TextColor3 = Color3.fromRGB(255, 50, 50)
         end
+    elseif k:lower() == "p" then
+        TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, Player)
     end
 end)
 
-MainTab:Toggle({
-    Title = "WallCombo Spam (Server)",
-    Default = false,
-    Callback = function(state) WallSettings.Enabled = state end
-})
-
-MainTab:Slider({
-    Title = "Spam Speed",
-    Step = 1,
-    Value = {Min = 1, Max = 15, Default = 1},
-    Callback = function(v)
-        WallSettings.AttackSpeed = v
-        WallSettings.HitsPerFrame = v + 1
-    end
-})
-
-MainTab:Section({ Title = "Exploits" })
-MainTab:Toggle({ Title = "Longer Ultimate", Callback = function(state) pcall(function() ReplicatedStorage.Settings.Multipliers.UltimateTimer.Value = state and 999999 or 100 end) end })
-MainTab:Toggle({ Title = "Instant Transformation", Callback = function(state) pcall(function() ReplicatedStorage.Settings.Toggles.InstantTransformation.Value = state end) end })
-MainTab:Toggle({ Title = "Disable Combat Timer", Callback = function(state) pcall(function() ReplicatedStorage.Settings.Toggles.DisableCombatTimer.Value = state end) end })
-MainTab:Toggle({ Title = "No Stun on Miss", Callback = function(state) pcall(function() ReplicatedStorage.Settings.Toggles.DisableHitStun.Value = state end) end })
-
--- [5] CHARACTER TAB
-CharacterTab:Section({ Title = "Player" })
-CharacterTab:Slider({
-    Title = "Speed Multiplier",
-    Step = 1,
-    Value = {Min = 1, Max = 10, Default = 1},
-    Callback = function(v)
-        pcall(function()
-            ReplicatedStorage.Settings.Multipliers.RunSpeed.Value = v
-            ReplicatedStorage.Settings.Multipliers.WalkSpeed.Value = v
-        end)
-    end
-})
-CharacterTab:Toggle({ Title = "Instant Respawn", Callback = function(state) getgenv().InstantRespawnEnabled = state end })
-CharacterTab:Toggle({ Title = "Anti Counter", Callback = function(state) getgenv().HitboxEnabled = state end })
-
--- [6] WORLD & VISUAL
-WorldTab:Section({ Title = "Atmosphere" })
-WorldTab:Dropdown({
-    Title = "Lighting",
-    Values = {"None", "Sun", "Night", "Cycle"},
-    Callback = function(v)
-        if v == "Sun" then Lighting.ClockTime = 12
-        elseif v == "Night" then Lighting.ClockTime = 0
+--- [ MOTOR DE CÁMARA ALTA ] ---
+RunService.RenderStepped:Connect(function()
+    if Locked and Target and Target:FindFirstChild("HumanoidRootPart") then
+        local enemyRoot = Target.HumanoidRootPart
+        
+        if Target.Humanoid.Health > 0 then
+          
+            local enemyPos = enemyRoot.Position + (enemyRoot.Velocity * Prediction)
+            
+            
+            local focusPoint = enemyPos + Vector3.new(0, VerticalLookOffset, 0)
+            
+           
+            -- Mantenemos la posición actual de la cámara pero la forzamos a mirar al punto de enfoque
+            local targetCF = CFrame.lookAt(Camera.CFrame.Position, focusPoint)
+            
+            
+            Camera.CFrame = Camera.CFrame:Lerp(targetCF, Smoothness)
+        else
+            Locked = false; Target = nil
+            lockStatus.Text = "LOCK: OFF"
         end
-    end
-})
-
-VisualTab:Section({ Title = "ESP" })
-VisualTab:Toggle({
-    Title = "Player Highlights",
-    Callback = function(state)
-        getgenv().ESPEnabled = state
-        -- Lógica de ESP...
-    end
-})
-
--- [7] EMOTES (SPAM & ONES)
-EmotesTab:Section({ Title = "Kill Emotes Spam" })
-local emotesFolder = ReplicatedStorage:WaitForChild("Cosmetics"):WaitForChild("KillEmote")
-local function getEmoteNames()
-    local names = {}
-    for _, child in pairs(emotesFolder:GetChildren()) do table.insert(names, child.Name) end
-    return names
-end
-local emoteList = getEmoteNames()
-
-EmotesTab:Toggle({ Title = "Enable Emote Spam", Callback = function(state) ConfigKillEmotes.Enabled = state end })
-EmotesTab:Dropdown({ Title = "Select Emote", Values = emoteList, Callback = function(v) ConfigKillEmotes.SelectedEmote = v end })
-
-task.spawn(function()
-    while true do
-        if ConfigKillEmotes.Enabled then
-            local target = getAllTargets(ConfigKillEmotes.Radius)[1]
-            if target then
-                local emoteObj = emotesFolder:FindFirstChild(ConfigKillEmotes.SelectedEmote)
-                if emoteObj then
-                    run_as_identity_2(function() pcall(Core.Get("Combat", "Ability").Activate, emoteObj, target) end)
-                end
-            end
-        end
-        task.wait(0.1)
     end
 end)
-
--- [8] HOME & DISCORD
-HomeTab:Paragraph({ Title = "Joshub Ultimate", Desc = "The complete arsenal for Jos.\nDiscord: discord.gg/Qt7zRF7E" })
-
-task.wait(1.5); pcall(function() HomeTab:Select() end)
-warn("Joshub Ultimate Loaded!")
