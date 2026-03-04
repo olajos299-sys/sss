@@ -1,6 +1,6 @@
 
 -- JOSHUB ULTIMATE EDITION BY JOS (ENHANCED V3)
--- BASE: NEXOR | WALLCOMBO: MESSAGE(8) | + NUEVAS FUNCIONES
+-- BASE: NEXOR | WALLCOMBO | + NUEVAS FUNCIONES
 
 -- =====================================================
 -- [1] VARIABLES GLOBALES
