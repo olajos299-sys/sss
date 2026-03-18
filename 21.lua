@@ -73,32 +73,33 @@ local function createMatrixRain(parent, w, h)
         Size = UDim2.new(1, 0, 1, 0),
         BackgroundTransparency = 1,
         ClipsDescendants = true,
-        ZIndex = 1,
+        ZIndex = 3,
     }, parent)
 
-    local COLS    = math.floor(w / 14)
+    local COLS    = math.floor(w / 10)
+
     local chars   = "0123456789ABCDEF><$#@!%^&*|/\\"
     local columns = {}
 
     for i = 1, COLS do
         local col = {
-            x     = (i - 1) * 14,
+            x     = (i - 1) * 10,
             y     = math.random(-h, 0),
-            speed = math.random(60, 140),
-            len   = math.random(4, 10),
+            speed = math.random(80, 160),
+            len   = math.random(5, 12),
             drops = {},
         }
         -- Crear labels para cada drop de la columna
         for j = 1, col.len do
             local lbl = make("TextLabel", {
-                Size = UDim2.new(0, 14, 0, 14),
+                Size = UDim2.new(0, 10, 0, 13),
                 BackgroundTransparency = 1,
-                TextSize = 10,
+                TextSize = 9,
                 Font = FONT,
                 Text = string.sub(chars, math.random(1, #chars), math.random(1, #chars)),
-                TextColor3 = j == 1 and Color3.fromRGB(180, 255, 200) or C.accentDim,
-                TextTransparency = j == 1 and 0 or (j / col.len) * 0.85,
-                ZIndex = 1,
+                TextColor3 = j == 1 and Color3.fromRGB(220, 255, 225) or C.accentDim,
+                TextTransparency = j == 1 and 0 or (j / col.len) * 0.75,
+                ZIndex = 5,
             }, canvas)
             col.drops[j] = lbl
         end
@@ -114,16 +115,16 @@ local function createMatrixRain(parent, w, h)
 
         for _, col in ipairs(columns) do
             col.y = col.y + col.speed * dt
-            if col.y > h + col.len * 14 then
-                col.y     = math.random(-80, -10)
-                col.speed = math.random(60, 140)
+            if col.y > h + col.len * 13 then
+                col.y     = math.random(-100, -10)
+                col.speed = math.random(80, 160)
             end
             for j, lbl in ipairs(col.drops) do
-                local py = col.y - (j - 1) * 14
+                local py = col.y - (j - 1) * 13
                 lbl.Position = UDim2.new(0, col.x, 0, py)
-                lbl.Visible = py > -14 and py < h
+                lbl.Visible = py > -13 and py < h
                 -- Cambiar char aleatoriamente
-                if math.random() < 0.03 then
+                if math.random() < 0.05 then
                     lbl.Text = string.sub(chars, math.random(1, #chars), math.random(1, #chars))
                 end
             end
@@ -178,7 +179,7 @@ function JoshLib.new(config)
     make("Frame", {
         Size             = UDim2.new(1, 0, 1, 0),
         BackgroundColor3 = C.bg,
-        BackgroundTransparency = 0.3,
+        BackgroundTransparency = 0.55,
         BorderSizePixel  = 0,
         ZIndex           = 2,
     }, win)
