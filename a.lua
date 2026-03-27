@@ -1,25 +1,7 @@
 -- ╔══════════════════════════════════════════════╗
--- ║           NEXLIB  —  by Jos                 ║
+-- ║           NEXLIB  —  by Jos                  ║
 -- ║   UI Library  |  Estilo premium              ║
--- ║   Inspirado en el layout de Obsidian         ║
 -- ╚══════════════════════════════════════════════╝
---
--- API rápida:
---   local NL = loadstring(...)()  -- o require
---   local Win = NL:CreateWindow({ Title="JoshHub V4", Icon=0, Footer="v4.0", ToggleKey=Enum.KeyCode.RightControl })
---   local Tab = Win:AddTab("Main", "layout-grid")
---   local Left  = Tab:AddLeftGroupbox("Kill Aura")
---   local Right = Tab:AddRightGroupbox("Exploit Basic")
---   Left:AddToggle("KA1",  { Text="Kill Aura", Default=false, Callback=fn })
---   Left:AddSlider("Dist", { Text="Distance",  Min=1, Max=100, Default=50, Rounding=0, Callback=fn })
---   Left:AddDropdown("DD", { Text="Mode", Values={"A","B"}, Default="A", Callback=fn })
---   Left:AddButton("Ejecutar", fn)
---   Left:AddInput("ID", { Text="Username", Default="", Callback=fn })
---   Left:AddLabel("Texto informativo")
---   Left:AddDivider()
---   Win:Notify({ Title="Hola", Description="Cargado", Time=3 })
---   NexLib.Toggles["KA1"]:SetValue(true)
---   NexLib.Options["Dist"]:SetValue(75)
 
 -- ══════════════════════════════════════════════
 -- SERVICES
