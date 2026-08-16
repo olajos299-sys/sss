@@ -4,13 +4,16 @@ local Camera = workspace.CurrentCamera
 local RunService = game:GetService("RunService")
 local TeleportService = game:GetService("TeleportService")
 
--- --- CONFIGURACIONES ---
+-- --- CONFIGURACIÓN PARA CELULAR ---
 _G.AimlockEnabled = false
 _G.ESPEnabled = false
 _G.TargetPart = "Head"
+_G.FOVRadius = 120 -- Tamaño del rango de enganche en pantalla
+_G.Smoothness = 0.25 -- Suavidad (0.1 = muy suave, 1 = instantáneo)
+
 local currentTarget = nil
 
--- --- INTERFAZ TÁCTIL PARA MOBILE ---
+-- --- INTERFAZ FLOTANTE MOBILE ---
 local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
 local MainFrame = Instance.new("Frame", ScreenGui)
 MainFrame.Size = UDim2.new(0, 160, 0, 150)
@@ -25,7 +28,7 @@ Corner.CornerRadius = UDim.new(0, 8)
 
 local Title = Instance.new("TextLabel", MainFrame)
 Title.Size = UDim2.new(1, 0, 0, 30)
-Title.Text = "Mobile Menu"
+Title.Text = "Aimbot Mobile"
 Title.TextColor3 = Color3.new(1, 1, 1)
 Title.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 local TitleCorner = Instance.new("UICorner", Title)
@@ -35,15 +38,16 @@ TitleCorner.CornerRadius = UDim.new(0, 8)
 local AimBtn = Instance.new("TextButton", MainFrame)
 AimBtn.Size = UDim2.new(0.9, 0, 0, 32)
 AimBtn.Position = UDim2.new(0.05, 0, 0.26, 0)
-AimBtn.Text = "Aimlock: OFF"
+AimBtn.Text = "Aimbot: OFF"
 AimBtn.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
 AimBtn.TextColor3 = Color3.new(1, 1, 1)
 Instance.new("UICorner", AimBtn)
 
 AimBtn.MouseButton1Click:Connect(function()
     _G.AimlockEnabled = not _G.AimlockEnabled
-    AimBtn.Text = _G.AimlockEnabled and "Aimlock: ON" or "Aimlock: OFF"
+    AimBtn.Text = _G.AimlockEnabled and "Aimbot: ON" or "Aimbot: OFF"
     AimBtn.BackgroundColor3 = _G.AimlockEnabled and Color3.fromRGB(50, 180, 50) or Color3.fromRGB(180, 50, 50)
+    if not _G.AimlockEnabled then currentTarget = nil end
 end)
 
 -- Botón ESP
@@ -90,31 +94,29 @@ local function createESP(player)
     box.Transparency = 1
     box.Filled = false
 
-    local function update()
-        local connection
-        connection = RunService.RenderStepped:Connect(function()
-            if _G.ESPEnabled and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-                local rootPart = player.Character.HumanoidRootPart
-                local pos, onScreen = Camera:WorldToViewportPoint(rootPart.Position)
+    RunService.RenderStepped:Connect(function()
+        if _G.ESPEnabled and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            local rootPart = player.Character.HumanoidRootPart
+            local pos, onScreen = Camera:WorldToViewportPoint(rootPart.Position)
+            
+            if onScreen then
+                local headPos = Camera:WorldToViewportPoint(rootPart.Position + Vector3.new(0, 3, 0)).Y
+                local legPos = Camera:WorldToViewportPoint(rootPart.Position + Vector3.new(0, -3, 0)).Y
+                local sizeY = math.abs(headPos - legPos)
                 
-                if onScreen then
-                    local size = (Camera:WorldToViewportPoint(rootPart.Position + Vector3.new(0, 3, 0)).Y - Camera:WorldToViewportPoint(rootPart.Position + Vector3.new(0, -3, 0)).Y)
-                    box.Size = Vector2.new(math.abs(size * 0.6), math.abs(size))
-                    box.Position = Vector2.new(pos.X - box.Size.X / 2, pos.Y - box.Size.Y / 2)
-                    box.Visible = true
-                else
-                    box.Visible = false
-                end
+                box.Size = Vector2.new(sizeY * 0.6, sizeY)
+                box.Position = Vector2.new(pos.X - box.Size.X / 2, pos.Y - box.Size.Y / 2)
+                box.Visible = true
             else
                 box.Visible = false
-                if not player.Parent then
-                    box:Remove()
-                    connection:Disconnect()
-                end
             end
-        end)
-    end
-    coroutine.wrap(update)()
+        else
+            box.Visible = false
+            if not player.Parent then
+                box:Remove()
+            end
+        end
+    end)
 end
 
 for _, p in pairs(Players:GetPlayers()) do
@@ -122,29 +124,24 @@ for _, p in pairs(Players:GetPlayers()) do
 end
 Players.PlayerAdded:Connect(function(p) if p ~= LocalPlayer then createESP(p) end end)
 
--- --- LÓGICA STICKY ---
-local function isAlive(target)
-    if target and target.Parent and target.Parent:FindFirstChild("Humanoid") then
-        return target.Parent.Humanoid.Health > 0
-    end
-    return false
-end
-
-local function getClosest()
+-- --- BÚSQUEDA DE OBJETIVO VÁLIDO ---
+local function getClosestPlayerInFOV()
     local target = nil
-    local dist = math.huge
-    local center = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
+    local shortestDistance = _G.FOVRadius
+    local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
 
     for _, v in pairs(Players:GetPlayers()) do
         if v ~= LocalPlayer and v.Character and v.Character:FindFirstChild(_G.TargetPart) then
-            local humanoid = v.Character:FindFirstChild("Humanoid")
+            local humanoid = v.Character:FindFirstChildOfClass("Humanoid")
             if humanoid and humanoid.Health > 0 then
-                local pos, onScreen = Camera:WorldToViewportPoint(v.Character[_G.TargetPart].Position)
+                local part = v.Character[_G.TargetPart]
+                local pos, onScreen = Camera:WorldToViewportPoint(part.Position)
+                
                 if onScreen then
-                    local mag = (Vector2.new(pos.X, pos.Y) - center).Magnitude
-                    if mag < dist then
-                        target = v.Character[_G.TargetPart]
-                        dist = mag
+                    local magnitude = (Vector2.new(pos.X, pos.Y) - screenCenter).Magnitude
+                    if magnitude < shortestDistance then
+                        target = part
+                        shortestDistance = magnitude
                     end
                 end
             end
@@ -153,17 +150,23 @@ local function getClosest()
     return target
 end
 
--- --- AIMLOCK (FUERZA BRUTA) ---
-RunService:BindToRenderStep("HardLockRivals", 201, function()
+-- --- AIMBOT FLUIDO PARA PANTALLAS TÁCTILES ---
+RunService.RenderStepped:Connect(function()
     if _G.AimlockEnabled then
-        if not currentTarget or not isAlive(currentTarget) then
-            currentTarget = getClosest()
+        if not currentTarget or not currentTarget.Parent or not currentTarget.Parent:FindFirstChildOfClass("Humanoid") or currentTarget.Parent:FindFirstChildOfClass("Humanoid").Health <= 0 then
+            currentTarget = getClosestPlayerInFOV()
+        else
+            -- Verificar si sigue dentro de la pantalla
+            local pos, onScreen = Camera:WorldToViewportPoint(currentTarget.Position)
+            if not onScreen then
+                currentTarget = getClosestPlayerInFOV()
+            end
         end
 
         if currentTarget then
-            Camera.CFrame = CFrame.lookAt(Camera.CFrame.Position, currentTarget.Position)
+            local targetCFrame = CFrame.lookAt(Camera.CFrame.Position, currentTarget.Position)
+            -- Interpolación para evitar tirones de cámara en mobile
+            Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, _G.Smoothness)
         end
-    else
-        currentTarget = nil
     end
 end)
