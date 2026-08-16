@@ -4,19 +4,34 @@ local Camera = workspace.CurrentCamera
 local RunService = game:GetService("RunService")
 local TeleportService = game:GetService("TeleportService")
 
--- --- CONFIGURACIÓN DELTA ---
+-- --- DESACTIVAR ALERTAS DE ANTI-CHEAT EN CLIENTE ---
+pcall(function()
+    for _, v in pairs(getgc(true)) do
+        if type(v) == "table" and rawget(v, "BAC") then
+            rawset(v, "BAC", nil)
+        end
+    end
+end)
+
+-- --- CONFIGURACIÓN BYPASS ---
 _G.AimlockEnabled = false
 _G.ESPEnabled = false
 _G.TargetPart = "Head"
-_G.FOVRadius = 150
-_G.Smoothness = 0.2 -- Ajuste de velocidad (0.1 = muy suave, 0.5 = rápido)
+_G.FOVRadius = 120
+_G.Smoothness = 0.15 -- Menos agresivo para no activar detección de cámara
 
 local currentTarget = nil
 
--- --- INTERFAZ COMPATIBLE CON DELTA MOBILE ---
+-- --- INTERFAZ SEGURA (PLAYERGUI EN VEZ DE COREGUI) ---
+local parentGui = LocalPlayer:WaitForChild("PlayerGui")
+if parentGui:FindFirstChild("UndetectedMobileHub") then
+    parentGui.UndetectedMobileHub:Destroy()
+end
+
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "DeltaHubMobile"
-ScreenGui.Parent = game:GetService("CoreGui")
+ScreenGui.Name = "UndetectedMobileHub"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = parentGui
 
 local MainFrame = Instance.new("Frame", ScreenGui)
 MainFrame.Size = UDim2.new(0, 150, 0, 140)
@@ -31,13 +46,12 @@ Corner.CornerRadius = UDim.new(0, 8)
 
 local Title = Instance.new("TextLabel", MainFrame)
 Title.Size = UDim2.new(1, 0, 0, 28)
-Title.Text = "DELTA HUB"
+Title.Text = "HUB V3 (Bypass)"
 Title.TextColor3 = Color3.fromRGB(0, 255, 150)
 Title.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 Title.Font = Enum.Font.SourceSansBold
 Title.TextSize = 14
-local TitleCorner = Instance.new("UICorner", Title)
-TitleCorner.CornerRadius = UDim.new(0, 8)
+Instance.new("UICorner", Title)
 
 -- Botón Aimbot
 local AimBtn = Instance.new("TextButton", MainFrame)
@@ -76,7 +90,7 @@ end)
 local RejoinBtn = Instance.new("TextButton", MainFrame)
 RejoinBtn.Size = UDim2.new(0.9, 0, 0, 30)
 RejoinBtn.Position = UDim2.new(0.05, 0, 0.75, 0)
-RejoinBtn.Text = "Rejoin Same Server"
+RejoinBtn.Text = "Rejoin Server"
 RejoinBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 215)
 RejoinBtn.TextColor3 = Color3.new(1, 1, 1)
 RejoinBtn.Font = Enum.Font.SourceSans
@@ -85,7 +99,7 @@ Instance.new("UICorner", RejoinBtn)
 RejoinBtn.MouseButton1Click:Connect(function()
     RejoinBtn.Text = "Reconectando..."
     if #Players:GetPlayers() <= 1 then
-        LocalPlayer:Kick("\nReconectando al servidor...")
+        LocalPlayer:Kick("\nReconectando...")
         task.wait()
         TeleportService:Teleport(game.PlaceId, LocalPlayer)
     else
@@ -93,18 +107,20 @@ RejoinBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- --- ESP HIGHLIGHT (OPTIMIZADO PARA DELTA) ---
+-- --- ESP INDETECTABLE ---
 local function applyESP(player)
     if player == LocalPlayer then return end
 
     local function setupHighlight(char)
         if not char then return end
-        local hl = char:FindFirstChild("DeltaESP") or Instance.new("Highlight")
-        hl.Name = "DeltaESP"
+        if char:FindFirstChild("ClientESP") then return end
+        
+        local hl = Instance.new("Highlight")
+        hl.Name = "ClientESP"
         hl.FillColor = Color3.fromRGB(255, 0, 50)
         hl.OutlineColor = Color3.fromRGB(255, 255, 255)
-        hl.FillTransparency = 0.4
-        hl.OutlineTransparency = 0
+        hl.FillTransparency = 0.5
+        hl.OutlineTransparency = 0.2
         hl.Enabled = _G.ESPEnabled
         hl.Parent = char
     end
@@ -116,23 +132,11 @@ end
 for _, p in pairs(Players:GetPlayers()) do applyESP(p) end
 Players.PlayerAdded:Connect(applyESP)
 
-RunService.RenderStepped:Connect(function()
-    for _, p in pairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer and p.Character then
-            local hl = p.Character:FindFirstChild("DeltaESP")
-            if hl then
-                hl.Enabled = _G.ESPEnabled
-            end
-        end
-    end
-end)
-
--- --- VALIDACIÓN EXCLUSIVA DE ENEMIGOS ---
+-- --- VALIDACIÓN SEGURA ---
 local function isTargetValid(part)
     if not part or not part.Parent then return false end
     local char = part.Parent
     
-    -- Ignorar completamente al jugador local y su personaje
     if LocalPlayer.Character and char:IsDescendantOf(LocalPlayer.Character) then return false end
     if char == LocalPlayer.Character then return false end
     
@@ -142,7 +146,7 @@ local function isTargetValid(part)
     return true
 end
 
--- --- BÚSQUEDA DEL OBJETIVO MÁS CERCANO A LA PANTALLA ---
+-- --- BÚSQUEDA DENTRO DE FOV ---
 local function getClosestEnemy()
     local closestTarget = nil
     local maxDistance = _G.FOVRadius
@@ -166,23 +170,33 @@ local function getClosestEnemy()
     return closestTarget
 end
 
--- --- EJECUCIÓN DEL AIMBOT SIN BLOQUEAR CÁMARA MÓVIL ---
-RunService.RenderStepped:Connect(function()
-    if _G.AimlockEnabled then
-        if not isTargetValid(currentTarget) then
-            currentTarget = getClosestEnemy()
-        else
-            local _, onScreen = Camera:WorldToViewportPoint(currentTarget.Position)
-            if not onScreen then
-                currentTarget = getClosestEnemy()
+-- --- AIMBOT CON LERP SUAVE Y DELAY HUMANO ---
+task.spawn(function()
+    while task.wait(0.015) do
+        -- Actualizar ESP sin sobrecargar el hilo de renderizado
+        for _, p in pairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer and p.Character then
+                local hl = p.Character:FindFirstChild("ClientESP")
+                if hl then
+                    hl.Enabled = _G.ESPEnabled
+                end
             end
         end
 
-        if currentTarget then
-            local targetCFrame = CFrame.lookAt(Camera.CFrame.Position, currentTarget.Position)
-            Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, _G.Smoothness)
+        if _G.AimlockEnabled then
+            if not isTargetValid(currentTarget) then
+                currentTarget = getClosestEnemy()
+            else
+                local _, onScreen = Camera:WorldToViewportPoint(currentTarget.Position)
+                if not onScreen then currentTarget = getClosestEnemy() end
+            end
+
+            if currentTarget then
+                local targetCFrame = CFrame.lookAt(Camera.CFrame.Position, currentTarget.Position)
+                Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, _G.Smoothness)
+            end
+        else
+            currentTarget = nil
         end
-    else
-        currentTarget = nil
     end
 end)
